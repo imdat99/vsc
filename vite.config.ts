@@ -24,7 +24,7 @@ export default defineConfig((env) => ({
     vitePluginLogger(),
     vitePluginSsrMiddleware({
       entry: "src/server.entry.tsx",
-      preview: path.resolve("dist/index.js"),
+      preview: path.resolve("dist/server/index.js"),
     }),
     createVirtualPlugin("ssr-assets", async function () {
       const bootstrapModules: ManifestChunk[] = [];
@@ -70,7 +70,7 @@ export default defineConfig((env) => ({
     outDir: env.isSsrBuild ? "dist/server" : "dist/public",
     minify: false,
     emptyOutDir: true,
-    ssr: env.isSsrBuild
+    // ssr: env.isSsrBuild
   },
   //   builder: {
   //     sharedPlugins: true,

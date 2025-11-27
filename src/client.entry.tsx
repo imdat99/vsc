@@ -10,7 +10,7 @@ import {
 import { type SerializeResult, deserialize } from "./integrations/serialize";
 import { createReferenceMap } from "./integrations/client-reference/runtime";
 import { listenBrowserHistory } from "./integrations/router/browser";
-
+// import { ssrRegisterHelper } from "/__vue-jsx-ssr-register-helper"
 async function main() {
 	if (window.location.search.includes("__nojs")) {
 		return;

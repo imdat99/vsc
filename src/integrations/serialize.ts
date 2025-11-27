@@ -29,6 +29,7 @@ export async function serialize(
 ): Promise<SerializeResult> {
 	const serializer = new Serializer(context);
 	const data = await serializer.serialize(input);
+	// console.log("serializing...", serializer.referenceIds);
 	return { data, referenceIds: [...serializer.referenceIds] };
 }
 
@@ -90,8 +91,11 @@ class Serializer {
 			// https://github.com/vuejs/core/blob/461946175df95932986cbd7b07bb9598ab3318cd/packages/runtime-core/src/component.ts#L546-L548
 			node.appContext = this.context ?? null;
 			const instance = createComponentInstance(node, null, null);
+            // make Vue think this instance is being SSR-rendered
+            const prev = setCurrentRenderingInstance(instance)
 			await setupComponent(instance, true);
 			const child = renderComponentRoot(instance);
+			setCurrentRenderingInstance(prev)
 			return this.serialize(child);
 		}
 		console.error("[unexpected vnode]", [node.type, node.shapeFlag]);
@@ -231,6 +235,7 @@ const {
 	createComponentInstance,
 	setupComponent,
 	renderComponentRoot,
+	setCurrentRenderingInstance
 }: {
 	createComponentInstance: (
 		vnode: VNode,
@@ -242,4 +247,5 @@ const {
 		isSSR?: boolean,
 	) => Promise<void> | undefined;
 	renderComponentRoot: (instance: ComponentInternalInstance) => VNode;
+    setCurrentRenderingInstance: (instance: ComponentInternalInstance | null) => ComponentInternalInstance | null;
 } = ssrUtils;

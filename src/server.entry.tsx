@@ -1,4 +1,4 @@
-import { createSSRApp, defineComponent } from "vue";
+import { createSSRApp, defineComponent, ssrContextKey } from "vue";
 import { renderToString } from "vue/server-renderer";
 import { createReferenceMap } from "./integrations/client-reference/runtime";
 import { deserialize, serialize } from "./integrations/serialize";
@@ -8,16 +8,32 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import Layout from "./routes/Layout";
 const app = new Hono<any>();
 app.use(serveStatic({ root: "./public" }));
+app.get("/.well-known/appspecific/com.chrome.devtools.json", async (c) => {
+	return c.json({
+		"name": "VSC Demo",
+	});
+});
 app.get("*", async (c) => {
 	return await handler(c.req.raw);
 });
+const routes = {
+	"/": () => import("./routes/home.server.vue"),
+	// "/highlight": () => import("./routes/highlight/page"),
+	// "/slow": () => import("./routes/slow/page"),
+	"/sfc": () => import("./routes/sfc/Page.server.vue"),
+};
 async function handler(request: Request) {
 	const url = new URL(request.url);
-
+	const route = routes[url.pathname as "/"];
+	let Slot = () => <div>Not Found</div>;
+	if (route) {
+			const Page = (await route()).default;
+			Slot = () => <Page />;
+	}
 	const serverApp = createSSRApp(() => null);
 	serverApp.provide("SERVER_REQUEST", { url });
-
-	const result = await serialize(<Router url={url} />, serverApp._context);
+	serverApp.provide(ssrContextKey, { modules: new Set() });
+	const result = await serialize(<Layout><Slot /></Layout>, serverApp._context);
 
 	if (url.searchParams.has("__serialize")) {
 		return new Response(JSON.stringify(result), {
@@ -28,6 +44,8 @@ async function handler(request: Request) {
 	}
 
 	const referenceMap = await createReferenceMap(result.referenceIds);
+	console.log("initReferenceMap", result.referenceIds);
+	
 	const Root = () => deserialize(result.data, referenceMap);
 	const app = createSSRApp(Root);
 	const ssrHtml = await renderToString(app);
@@ -53,27 +71,19 @@ async function handler(request: Request) {
 	});
 }
 
-const routes = {
-	"/": () => import("./routes/home.server.vue"),
-	// "/highlight": () => import("./routes/highlight/page"),
-	// "/slow": () => import("./routes/slow/page"),
-	"/sfc": () => import("./routes/sfc/Page.server.vue"),
-};
 
-const Router = defineComponent<{ url: URL }>(
-	async (props) => {
-		const route = routes[props.url.pathname as "/"];
-		let slot = () => <div>Not Found</div>;
-		if (route) {
-			const Page = (await route()).default;
-			slot = () => <Page />;
-		}
-		return () => <Layout>{slot}</Layout>;
-	},
-	{
-		props: ["url"],
-	},
-);
+
+// const Router = defineComponent<{ url: URL }>({
+// 	props: ["url"],
+// 	async setup(props) {
+// 		return () => <Layout>{slot}</Layout>;
+// 	}
+// }
+	// ,
+	// {
+	// 	props: ["url"],
+	// },
+// );
 
 // https://github.com/remix-run/remix/blob/7f30f0bc976f0b97a020e81be33f90f68d4e527a/packages/remix-server-runtime/markup.ts#L7-L16
 function escpaeScriptString(s: string) {

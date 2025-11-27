@@ -268,7 +268,7 @@ function patchServerVue(plugin: Record<string, any>): Plugin {
 	};
 
 	// also remove handleHotUpdate since we handle server component hmr on our own
-	if(plugin.handleHotUpdate) { 
+	if(plugin.handleHotUpdate) {
         tinyassert(typeof plugin.handleHotUpdate === "function", "plugin.handleHotUpdate is not a function");
 	    delete plugin.handleHotUpdate;
     }
