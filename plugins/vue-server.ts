@@ -59,23 +59,25 @@ export function vitePluginVueServer(): PluginOption {
 	const browserIds = new Set<string>();
 
 	return [
+		// vue(),
+		// vueJSX(),
 		// client sfc (i.e. browser and ssr)
-		vue({
-			exclude: ["**/*.server.vue"],
-		}),
-        vueJSX({
-            exclude: ["**/*.server.*"],
-        }),
+		// vue({
+		// 	exclude: ["**/*.server.vue"],
+		// }),
+		// vueJSX({
+		// 	exclude: ["**/*.server.*"],
+		// }),
 
 		// server sfc
 		patchServerVue(
 			vue({
-				include: ["**/*.server.vue"],
+				// include: ["**/*.server.vue"],
 			}),
 		),
 		patchServerVue(
 			vueJSX({
-				include: ["**/*.server.*"],
+				// include: ["**/*.server.*"],
 			}),
 		),
 		{
@@ -255,23 +257,28 @@ export function createVirtualPlugin(name: string, load: Plugin["load"]) {
 	} satisfies Plugin;
 }
 function patchServerVue(plugin: Record<string, any>): Plugin {
+	const regex = /^.*[^/]+\.server\.[^/]+$/;
 	// need to force non-ssr transform to always render vnode
 	tinyassert(typeof plugin.transform.handler === "function", "plugin.transform.handler is not a function");
 	const oldTransform = plugin.transform.handler;
-    plugin.transform.handler = async function (code: string, id: string, _options: any) {
-        return oldTransform.apply(this, [code, id, { ssr: false }]);
-    };
+	plugin.transform.handler = async function (code: string, id: string, _options: any) {
+		if (regex.test(id))
+			return oldTransform.apply(this, [code, id, { ssr: false }]);
+		return oldTransform.apply(this, [code, id, _options]);
+	};
 	tinyassert(typeof plugin.load.handler === "function", "plugin.load.handler is not a function");
 	const oldLoad = plugin.load.handler;
 	plugin.load.handler = async function (id: string, _options: any) {
-		return oldLoad.apply(this, [id, { ssr: false }]);
+		if (regex.test(id))
+			return oldLoad.apply(this, [id, { ssr: false }]);
+		return oldLoad.apply(this, [id, _options]);
 	};
 
 	// also remove handleHotUpdate since we handle server component hmr on our own
-	if(plugin.handleHotUpdate) {
-        tinyassert(typeof plugin.handleHotUpdate === "function", "plugin.handleHotUpdate is not a function");
-	    delete plugin.handleHotUpdate;
-    }
+	if (plugin.handleHotUpdate) {
+		tinyassert(typeof plugin.handleHotUpdate === "function", "plugin.handleHotUpdate is not a function");
+		delete plugin.handleHotUpdate;
+	}
 
 	return plugin as Plugin;
 }
