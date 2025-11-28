@@ -90,8 +90,8 @@ export function vitePluginVueServer(): PluginOption {
 					code = code
 						.replace(/.*__hmrId.*/, "")
 						.replace(/.*__VUE_HMR_RUNTIME__.*/gm, "")
-						.replace("import.meta.hot.accept", "(() => {})")
-						.replace("import.meta.hot.on", "(() => {})");
+						.replace("import.meta.hot.accept", "")
+						.replace("import.meta.hot.on", "");
 
 					return { code, map: null };
 				}

@@ -6,7 +6,6 @@ import { Hono } from "hono";
 import { serveStatic } from '@hono/node-server/serve-static';
 import { streamText } from "hono/streaming";
 import { bootstrapModules } from "virtual:ssr-assets";
-import "uno.css";
 
 // import { serveStatic } from "hono/bun";
 import LayoutRoot from "./components/Layout/Root";
@@ -25,26 +24,25 @@ app.get("*", async (c) => {
 			const Page = (await route()).default;
 			Slot = () => <Page />;
 	}
-	const serverApp = createSSRApp(() => null);
-	serverApp.provide("SERVER_REQUEST", { url });
-	serverApp.provide(ssrContextKey, { modules: new Set() });
-	const result = await serialize(<LayoutRoot><Slot /></LayoutRoot>, serverApp._context);
+	const App = <LayoutRoot><Slot /></LayoutRoot>;
+	
 
 	if (url.searchParams.has("__serialize")) {
-		return new Response(")]}'\n"+JSON.stringify(Object.values(result)), {
-			headers: {
-				"content-type": "application/json; charset=UTF-8",
-				"content-disposition": 'attachment; filename="f.txt"',
-				"cross-origin-opener-policy": 'same-origin-allow-popups; report-to="gws"',
-			},
-		});
+		const serverApp = createSSRApp(() => null);
+		serverApp.provide("SERVER_REQUEST", { url });
+		serverApp.provide(ssrContextKey, { modules: new Set() });
+		const result = await serialize(App, serverApp._context);
+		c.header("Content-Type", "application/json; charset=UTF-8");
+		c.header("Content-Disposition", 'attachment; filename="f.txt"');
+		c.header("Cross-Origin-Opener-Policy", 'same-origin-allow-popups; report-to="gws"');
+		return c.json(Object.values(result));
 	}
 
-	const referenceMap = await createReferenceMap(result.referenceIds);
-	console.log("initReferenceMap", result.referenceIds);
+	// const referenceMap = await createReferenceMap(result.referenceIds);
 	
-	const Root = () => deserialize(result.data, referenceMap);
-	const app = createSSRApp(Root);
+	// const Root = () => deserialize(result.data, referenceMap);
+	// console.log("Root", JSON.stringify(Root(), null, 2));
+	const app = createSSRApp(App);
 	const ctx = {};
 	const appStream = renderToWebStream(app, ctx);
 	// let html = (await import("virtual:index-html" as string)).default as string;
@@ -77,9 +75,9 @@ app.get("*", async (c) => {
 		await stream.write(buildBootstrapScript());
 		await stream.write("</head><body class='font-sans bg-[#f9fafd] text-gray-800 antialiased flex flex-col'>");
 		await stream.pipe(appStream);
-		let json = htmlEscape(JSON.stringify(JSON.stringify(Object.values(result))));
+		// let json = htmlEscape(JSON.stringify(Object.values(result)));
 		let jsonCtx = htmlEscape(JSON.stringify(JSON.stringify(ctx)));
-		await stream.write(`<script>globalThis.__serialized=JSON.parse(${json});</script>`);
+		// await stream.write(`<script>globalThis.__serialized=${json};</script>`);
 		await stream.write(`<script>globalThis.__SSR_CONTEXT__=JSON.parse(${jsonCtx});</script>`);
 		await stream.write("</body></html>");
 	});

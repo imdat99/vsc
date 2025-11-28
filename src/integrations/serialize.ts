@@ -197,6 +197,7 @@ class Deserializer {
 			typeof v === "boolean" ||
 			typeof v === "number"
 		) {
+			// console.log("primitive", v);
 			return v;
 		}
 		if (Array.isArray(v) && v[0] === true /* __snode */) {

@@ -68,7 +68,7 @@ export default defineConfig((env) => ({
   build: {
     manifest: true,
     outDir: env.isSsrBuild ? "dist/server" : "dist/public",
-    minify: true,
+    minify: false,
     emptyOutDir: true,
     // ssr: env.isSsrBuild
   },

@@ -9,16 +9,27 @@ import {
 import { type SerializeResult, deserialize } from "./integrations/serialize";
 import { createReferenceMap } from "./integrations/client-reference/runtime";
 import { listenBrowserHistory } from "./integrations/router/browser";
+import "uno.css";
+
 // import { ssrRegisterHelper } from "/__vue-jsx-ssr-register-helper"
+async function callServer() {
+	const url = new URL(window.location.href);
+	url.searchParams.set("__serialize", "");
+	const res = await fetch(url);
+	tinyassert(res.ok);
+	const result = await res.json()
+	const referenceMap = await createReferenceMap(result[1]);
+	return () => deserialize(result[0], referenceMap);
+}
 async function main() {
 	if (window.location.search.includes("__nojs")) {
 		return;
 	}
 
-	let initResult = (globalThis as any).__serialized;
-	const initReferenceMap = await createReferenceMap(initResult[1]);
-	const initRender = () => deserialize(initResult[0], initReferenceMap);
-
+	// let initResult = (globalThis as any).__serialized;
+	// const initReferenceMap = await createReferenceMap(initResult[1]);
+	// const initRender = () => deserialize(initResult[0], initReferenceMap);
+	const initRender = await callServer();
 	const Root = defineComponent(() => {
 		const render = shallowRef(initRender);
 		const isLoading = shallowRef(false);
@@ -34,18 +45,14 @@ async function main() {
 		listenBrowserHistory(() => {
 			isLoading.value = true;
 			navManager.push(async () => {
-				const url = new URL(window.location.href);
-				url.searchParams.set("__serialize", "");
-				const res = await fetch(url);
-				tinyassert(res.ok);
-				const result = await res.text().then((t) => JSON.parse(t.slice(4)));
-				const referenceMap = await createReferenceMap(result[1]);
-				return () => deserialize(result[0], referenceMap);
+				const initRender = await callServer();
+				return initRender;
 			});
 		});
 
 		return () => render.value() as any;
 	});
+	// console.log("initRender", JSON.stringify(initRender, null, 2));
 
 	const app = createSSRApp(Root);
 	
@@ -57,8 +64,8 @@ async function main() {
 	});
 	app.mount("body", true);
 	// clean up
-	initResult = undefined;
-	(window as any).__serialized = undefined;
+	// initResult = undefined;
+	// (window as any).__serialized = undefined;
 	if (import.meta.hot) {
 		import.meta.hot.on("vue-server:update", (e) => {
 			console.log("[vue-server] hot update", e.file);
