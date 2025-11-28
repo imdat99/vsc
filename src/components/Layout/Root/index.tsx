@@ -1,5 +1,5 @@
 import { defineComponent } from "vue";
-import Header from "./Header.vue";
+import Header from "./Header.server.vue";
 import { Link } from "@/integrations/router/client";
 
 export default defineComponent((_p, { slots }) => {

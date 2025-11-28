@@ -6,6 +6,8 @@ import { Hono } from "hono";
 import { serveStatic } from '@hono/node-server/serve-static';
 import { streamText } from "hono/streaming";
 import { bootstrapModules } from "virtual:ssr-assets";
+import "uno.css";
+
 // import { serveStatic } from "hono/bun";
 import LayoutRoot from "./components/Layout/Root";
 const app = new Hono<any>();
