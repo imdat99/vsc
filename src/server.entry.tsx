@@ -7,7 +7,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { streamText } from "hono/streaming";
 import { bootstrapModules } from "virtual:ssr-assets";
 // import { serveStatic } from "hono/bun";
-import Layout from "./routes/Layout";
+import LayoutRoot from "./components/Layout/Root";
 const app = new Hono<any>();
 app.use(serveStatic({ root: "./public" }));
 app.get("/.well-known/appspecific/com.chrome.devtools.json", async (c) => {
@@ -26,7 +26,7 @@ app.get("*", async (c) => {
 	const serverApp = createSSRApp(() => null);
 	serverApp.provide("SERVER_REQUEST", { url });
 	serverApp.provide(ssrContextKey, { modules: new Set() });
-	const result = await serialize(<Layout><Slot /></Layout>, serverApp._context);
+	const result = await serialize(<LayoutRoot><Slot /></LayoutRoot>, serverApp._context);
 
 	if (url.searchParams.has("__serialize")) {
 		return new Response(")]}'\n"+JSON.stringify(Object.values(result)), {

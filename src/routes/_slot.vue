@@ -6,7 +6,7 @@ const count = ref(0);
 <template>
   <div style="padding: 0.5rem; border: 1px solid #bbb; background-color: #fee">
     <div style="margin-bottom: 0.5rem;">
-      <button @click="count++">client counter {{ count }}</button>
+      <button class="btn btn-outline-primary" @click="count++">client counter {{ count }}</button>
     </div>
     <slot v-if="count % 2 === 0"></slot>
   </div>

@@ -19,8 +19,8 @@ import {
 export default defineConfig((env) => ({
   plugins: [
     // vue(),
-    vitePluginVueServer(),
     unocss(),
+    vitePluginVueServer(),
     vitePluginLogger(),
     vitePluginSsrMiddleware({
       entry: "src/server.entry.tsx",

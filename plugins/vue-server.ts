@@ -242,14 +242,14 @@ function clientReferencePlugin(): PluginOption {
 		const bootstrapModules: ManifestChunk[] = [];
 		if (this.environment.mode === "dev") {
 			bootstrapModules.push({
-			file: "/@vite/client",
+			file: "@vite/client",
 			isEntry: true,
 			css: [],
 			imports: [],
 			dynamicImports: [],
 			assets: [],
 			},{
-			file: "/src/client.entry.tsx",
+			file: "src/client.entry.tsx",
 			isEntry: true,
 			css: [],
 			})
