@@ -10,7 +10,7 @@ export async function transformClientReference(input: string, id: string) {
 	// output.append(`\n`);
 	output.prepend(`\
 import { registerClientReference as $$wrap1 } from "@/integrations/serialize";
-const $$wrap = (v, id, name) => $$wrap1(v, id + "#" + name);
+const $$wrap = (v, id, name) => $$wrap1(v, name.toLowerCase() !== 'default' ? id + "#" + name : id);
 `);
 	return output;
 }

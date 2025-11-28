@@ -68,24 +68,26 @@ class Serializer {
 	// https://github.com/vuejs/core/blob/461946175df95932986cbd7b07bb9598ab3318cd/packages/server-renderer/src/render.ts#L220
 	async serializeNode(node: VNode) {
 		if (typeof node.type === "symbol" || node.shapeFlag & ShapeFlags.ELEMENT) {
-			return {
+			return SNodeObjtoSNode({
 				__snode: true,
 				type: serializeNodeType(node.type),
 				props: await this.serialize({ ...(node.props ?? {}), key: node.key }),
 				children: await this.serialize(node.children),
-			} satisfies SNode;
+			} satisfies SNodeObj);
+			// satisfies SNode;
 		}
 		if (node.shapeFlag & ShapeFlags.COMPONENT) {
 			// client reference
 			const id = (node.type as any).__reference_id;
 			if (id) {
 				this.referenceIds.add(id);
-				return {
+				return SNodeObjtoSNode({
 					__snode: true,
 					__reference_id: id,
 					props: await this.serialize({ ...(node.props ?? {}), key: node.key }),
 					children: await this.serializeClientChildren(node.children),
-				} satisfies SNode;
+				} satisfies SNodeObj);
+				// satisfies SNode;
 			}
 			// setup app context for app.provide/component
 			// https://github.com/vuejs/core/blob/461946175df95932986cbd7b07bb9598ab3318cd/packages/runtime-core/src/component.ts#L546-L548
@@ -129,14 +131,29 @@ async function mapPromise<T, U>(
 	return ys;
 }
 
-type SNode = {
+type SNodeObj = {
 	__snode: true;
 	__reference_id?: string;
 	type?: any;
 	props: any;
 	children: any;
 };
-
+type SNode = [
+	__snode: true, // 0
+	__reference_id: string | null, // 1
+	type: any | null, // 2
+	props: any, // 3
+	children: any // 4
+];
+function SNodeObjtoSNode(o: SNodeObj): SNode {
+	return [
+		true,
+		o.__reference_id ?? null,
+		o.type ?? null,
+		o.props,
+		o.children,
+	];
+}
 function serializeNodeType(s: any) {
 	if (typeof s === "symbol") {
 		return "$" + s.description;
@@ -182,7 +199,7 @@ class Deserializer {
 		) {
 			return v;
 		}
-		if (typeof v === "object" && "__snode" in v) {
+		if (Array.isArray(v) && v[0] === true /* __snode */) {
 			return this.deserializeNode(v as SNode);
 		}
 		if (Array.isArray(v)) {
@@ -194,24 +211,24 @@ class Deserializer {
 	}
 
 	deserializeNode(node: SNode) {
-		if (node.__reference_id) {
-			const Component = this.referenceMap[node.__reference_id];
+		if (node[1] /* __reference_id */) {
+			const Component = this.referenceMap[node[1]];
 			if (!Component) {
 				console.error(node);
-				throw new Error("reference not found: " + node.__reference_id, {
+				throw new Error("reference not found: " + node[1], {
 					cause: node,
 				});
 			}
 			return createVNode(
 				Component,
-				this.deserialize(node.props) as any,
-				this.deserializeClientChildren(node.children),
+				this.deserialize(node[3]) as any,
+				this.deserializeClientChildren(node[4]),
 			);
 		}
 		return createVNode(
-			deserializeNodeType(node.type),
-			this.deserialize(node.props) as any,
-			this.deserialize(node.children),
+			deserializeNodeType(node[2]),
+			this.deserialize(node[3]) as any,
+			this.deserialize(node[4]),
 		);
 	}
 

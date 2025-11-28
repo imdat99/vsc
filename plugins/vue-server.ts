@@ -22,7 +22,7 @@
 // 	vitePluginSilenceDirectiveBuildWarning,
 // } from "./src/demo/integrations/client-reference/plugin-utils";
 
-import { build, type ConfigEnv, type PluginOption, type ViteDevServer, type Plugin } from "vite";
+import { build, type ConfigEnv, type PluginOption, type ViteDevServer, type Plugin, Manifest, ManifestChunk } from "vite";
 import vue from "@vitejs/plugin-vue";
 import vueJSX from "@vitejs/plugin-vue-jsx";
 
@@ -185,12 +185,13 @@ function clientReferencePlugin(): PluginOption {
 						(id.endsWith(".vue") && /__vite_useSSRContext/.test(code))
 					) {
 						clientBoundaryIds.add(id);
+						const isDev = this.environment.mode === "dev";
 						if (manager.buildType === "server-pre") {
 							// don't need to crawl further once client boundary is found,
 							// but still need to fake exports to not break build.
 							return { code: await transformEmptyExports(code), map: null };
 						}
-						const result = await transformClientReference(code, id);
+						const result = await transformClientReference(code, isDev ? id : nanoHash(id));
 						return { code: result.toString(), map: result.generateMap() };
 					}
 				}
@@ -198,10 +199,11 @@ function clientReferencePlugin(): PluginOption {
 			},
 			buildEnd() {
 				if (manager.buildType === "server-pre") {
+					const isDev = this.environment.mode === "dev";
 					const code = [
 						"export default {",
 						...[...clientBoundaryIds].map(
-							(id) => `"${id}": () => import("${id}"),`,
+							(id) => `"${isDev ? id : nanoHash(id)}": () => import("${id}"),`,
 						),
 						"}",
 					].join("\n");
@@ -235,6 +237,38 @@ function clientReferencePlugin(): PluginOption {
 				code = await this.fs.readFile("dist/public/index.html").then((buf) => buf.toString());
 			}
 			return { code: `export default ${JSON.stringify(code)}`, map: null };
+		}),
+		createVirtualPlugin("ssr-assets", async function () {
+		const bootstrapModules: ManifestChunk[] = [];
+		if (this.environment.mode === "dev") {
+			bootstrapModules.push({
+			file: "/@vite/client",
+			isEntry: true,
+			css: [],
+			imports: [],
+			dynamicImports: [],
+			assets: [],
+			},{
+			file: "/src/client.entry.tsx",
+			isEntry: true,
+			css: [],
+			})
+		}
+		if (this.environment.mode === "build") {
+			try {
+				await this.fs.unlink("dist/public/index.html").catch();
+			} catch (e) {}
+			const bundleFile = await this.fs
+			.readFile("dist/public/.vite/manifest.json")
+			.then((json) => {
+				const clientManifest: Manifest = JSON.parse(json.toString());
+				return Object.values(clientManifest).find((c) => c.isEntry);
+			});
+			bootstrapModules.push(bundleFile!);
+		}
+		return `export const bootstrapModules = ${JSON.stringify(
+			bootstrapModules
+		)}`;
 		}),
 		vitePluginSilenceDirectiveBuildWarning(),
 	];
@@ -281,4 +315,11 @@ function patchServerVue(plugin: Record<string, any>): Plugin {
 	}
 
 	return plugin as Plugin;
+}
+function nanoHash(str: string): string {
+	let hash = 5381;
+	for (let i = 0; i < str.length; i++) {
+		hash = (hash << 5) + hash + str.charCodeAt(i);
+	}
+	return (hash >>> 0).toString(36);
 }

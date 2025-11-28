@@ -16,9 +16,9 @@ async function main() {
 		return;
 	}
 
-	const initResult: SerializeResult = (globalThis as any).__serialized;
-	const initReferenceMap = await createReferenceMap(initResult.referenceIds);
-	const initRender = () => deserialize(initResult.data, initReferenceMap);
+	let initResult = (globalThis as any).__serialized;
+	const initReferenceMap = await createReferenceMap(initResult[1]);
+	const initRender = () => deserialize(initResult[0], initReferenceMap);
 
 	const Root = defineComponent(() => {
 		const render = shallowRef(initRender);
@@ -39,9 +39,9 @@ async function main() {
 				url.searchParams.set("__serialize", "");
 				const res = await fetch(url);
 				tinyassert(res.ok);
-				const result: SerializeResult = await res.json();
-				const referenceMap = await createReferenceMap(result.referenceIds);
-				return () => deserialize(result.data, referenceMap);
+				const result = await res.text().then((t) => JSON.parse(t.slice(4)));
+				const referenceMap = await createReferenceMap(result[1]);
+				return () => deserialize(result[0], referenceMap);
 			});
 		});
 
@@ -49,14 +49,17 @@ async function main() {
 	});
 
 	const app = createSSRApp(Root);
-	const el = document.getElementById("root");
-	tinyassert(el);
+	
+	// const el = document.getElementById("root");
+	// tinyassert(el);
 
 	listenHydrationMismatch(() => {
 		document.title = "🚨 HYDRATE ERROR";
 	});
-	app.mount(el);
-
+	app.mount("body", true);
+	// clean up
+	initResult = undefined;
+	(window as any).__serialized = undefined;
 	if (import.meta.hot) {
 		import.meta.hot.on("vue-server:update", (e) => {
 			console.log("[vue-server] hot update", e.file);
