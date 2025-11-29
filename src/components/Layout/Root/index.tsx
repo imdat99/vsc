@@ -1,4 +1,4 @@
-import { defineComponent } from "vue";
+import { defineComponent, ref } from "vue";
 import Header from "./Header.server.vue";
 import { Link } from "@/integrations/router/client";
 
@@ -9,6 +9,7 @@ export default defineComponent((_p, { slots }) => {
 		{ href: "/settings", label: "Settings" },
 		{ href: "/sfc", label: "sfc" },
 	]
+	const count = ref(0);
 	return () => (
 		<>
 			<Header num={100} />

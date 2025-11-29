@@ -192,7 +192,7 @@ export type ReferenceMap = Record<string, unknown>;
 
 export function deserialize(data: unknown[], referenceMap: ReferenceMap) {
 	const deserializer = new Deserializer(referenceMap, data as any[]); //tagMap
-	return deserializer.deserialize(data[1]); //root
+	return deserializer.deserialize(data.find(i => Array.isArray(i) && i.length === 5)); //root
 }
 
 class Deserializer {

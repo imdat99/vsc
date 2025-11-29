@@ -33,38 +33,18 @@ app.get("*", async (c) => {
 		serverApp.provide(ssrContextKey, { modules: new Set() });
 		const result = await serialize(App, serverApp._context);
 		c.header("Content-Type", "application/json; charset=UTF-8");
+		c.header("Content-Encoding", "Identity");
+		// c.header("Content-Type", "application/json; charset=UTF-8");
 		c.header("Content-Disposition", 'attachment; filename="f.txt"');
 		c.header("Cross-Origin-Opener-Policy", 'same-origin-allow-popups; report-to="gws"');
-		return c.json(Object.values(result));
+		// return c.json(Object.values(result));
+		return streamText(c, async (stream) => {
+			await stream.write(JSON.stringify(Object.values(result)));
+		});
 	}
-
-	// const referenceMap = await createReferenceMap(result.referenceIds);
-
-	// const Root = () => deserialize(result.data, referenceMap);
-	// console.log("Root", JSON.stringify(Root(), null, 2));
 	const app = createSSRApp(App);
 	const ctx = {};
 	const appStream = renderToWebStream(app, ctx);
-	// let html = (await import("virtual:index-html" as string)).default as string;
-	// html = html.replace("<body>", () => `<body><div id="root">${ssrHtml}</div>`);
-	// html = html.replace(
-	// 	"<head>",
-	// 	() =>
-	// 		`<head><script>globalThis.__serialized = ${escpaeScriptString(
-	// 			JSON.stringify(result),
-	// 		)}</script>`,
-	// );
-	// if (import.meta.env.DEV) {
-	// 	html = html.replace(
-	// 		"<head>",
-	// 		`<head><link rel="stylesheet" href="/src/demo/style.css?direct" />`,
-	// 	);
-	// }
-	// return new Response(html, {
-	// 	headers: {
-	// 		"content-type": "text/html",
-	// 	},
-	// });
 	return streamText(c, async (stream) => {
 		c.header("Content-Type", "text/html; charset=UTF-8");
 		c.header("Content-Encoding", "Identity");

@@ -19,7 +19,9 @@ import {
 export default defineConfig((env) => ({
   plugins: [
     // vue(),
-    unocss(),
+    unocss({
+      applyExtractors: env.isSsrBuild ? true : false,
+    }),
     vitePluginVueServer(),
     vitePluginLogger(),
     vitePluginSsrMiddleware({
