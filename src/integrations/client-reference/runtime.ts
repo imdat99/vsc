@@ -1,9 +1,9 @@
 import type { ReferenceMap } from "@/integrations/serialize";
 
-export async function createReferenceMap(ids: string[]): Promise<ReferenceMap> {
+export async function createReferenceMap(ids: string[][]): Promise<ReferenceMap> {
 	return Object.fromEntries(
 		await Promise.all(
-			ids.map(async (id, idx) => [idx + 1, await resolveReference(id)]),
+			ids.map(async ([idx, id]) => [idx, await resolveReference(id)]),
 		),
 	);
 }

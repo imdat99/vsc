@@ -5,6 +5,7 @@ import {
 	provide,
 	readonly,
 	shallowRef,
+	watch,
 } from "vue";
 import { type SerializeResult, deserialize } from "./integrations/serialize";
 import { createReferenceMap } from "./integrations/client-reference/runtime";
@@ -18,9 +19,8 @@ async function callServer() {
 	const res = await fetch(url);
 	tinyassert(res.ok);
 	const result = await res.json()
-	window.__debug = result[0];
-	const referenceMap = await createReferenceMap(result[1]);
-	return () => deserialize(result[0], referenceMap, result[2]);
+	const referenceMap = await createReferenceMap(result[1].map((i: number) => [i, result[0][i-1]]));
+	return () => deserialize(result[0], referenceMap);
 }
 async function main() {
 	if (window.location.search.includes("__nojs")) {
@@ -31,8 +31,13 @@ async function main() {
 	// const initReferenceMap = await createReferenceMap(initResult[1]);
 	// const initRender = () => deserialize(initResult[0], initReferenceMap);
 	const initRender = await callServer();
-	const Root = defineComponent(() => {
+	const Root = defineComponent({
+		name: "Root",
+		setup () {
 		const render = shallowRef(initRender);
+		watch(render, (v) => {
+			console.log("render changed", v);
+		});
 		const isLoading = shallowRef(false);
 		provide("isLoading", readonly(isLoading));
 
@@ -52,6 +57,7 @@ async function main() {
 		});
 
 		return () => render.value() as any;
+	}
 	});
 
 	const app = createSSRApp(Root);

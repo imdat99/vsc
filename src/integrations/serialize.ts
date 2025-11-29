@@ -21,9 +21,8 @@ import {
 //
 
 export type SerializeResult = {
-	data: unknown;
-	referenceIds: readonly string[];
-	tags: readonly string[];
+	referenceIds: readonly unknown[];
+	typeIndex: readonly number[];
 };
 
 export async function serialize(
@@ -32,13 +31,18 @@ export async function serialize(
 ): Promise<SerializeResult> {
 	const serializer = new Serializer(context);
 	const data = await serializer.serialize(input);
-	// console.log("serializing...", serializer.tagIds.toArray());
-	return { data, referenceIds: serializer.referenceIds.toArray(), tags: serializer.tagIds.toArray() };
+	return { referenceIds: serializer.referenceIds.toArray(), typeIndex: Array.from(serializer.typeIndex) };
 }
 
 class Serializer {
-	referenceIds = new UniqueList<string>();
-	tagIds = new UniqueList<string>();
+	referenceIds = new UniqueList<unknown>();
+	typeIndex = new Set<number>() //reference
+	/**
+	 * Đánh dấu kiểu của giá trị đã serialize \n default type = 0 (node)
+	 * @param v 
+	 * @param type 0: node | 1: reference | 2: tags
+	 */
+	// nodeIds = new UniqueList<unknown>();
 	constructor(private context?: AppContext) { }
 
 	async serialize(v: unknown): Promise<unknown> {
@@ -69,27 +73,39 @@ class Serializer {
 	}
 
 	// https://github.com/vuejs/core/blob/461946175df95932986cbd7b07bb9598ab3318cd/packages/server-renderer/src/render.ts#L220
+	async serializeProps(node: VNode){
+			return await this.serialize({ ...(node.props ?? {}), key: node.key }).then((p) => Object.entries(p as Record<string, any>).filter(([k, v]) => v).map(([k, v]) => [this.referenceIds.add(k), v])).then(v => v.length ? v : 0)
+	}
 	async serializeNode(node: VNode) {
+		
 		if (typeof node.type === "symbol" || node.shapeFlag & ShapeFlags.ELEMENT) {
-			return SNodeObjtoSNode({
-				__snode: node?.staticCount || 1,
-				type: this.tagIds.add(serializeNodeType(node.type)),
-				props: await this.serialize({ ...(node.props ?? {}), key: node.key }).then((p) => Object.entries(p as Record<string, any>).filter(([k, v]) => v).map(([k, v]) => [this.tagIds.add(k), v])).then(v => v.length ? v : 0),
-				children: await this.serialize(node.children).then(p => p ? [p] : null),
+			const sNode = SNodeObjtoSNode({
+				__snode: (node as any)?.staticCount || 1,
+				type: this.referenceIds.add(serializeNodeType(node.type)),
+				props: {},
+				children: [],
 			} satisfies SNodeObj);
-			// satisfies SNode;
+			const nodeIdx = this.referenceIds.add(sNode);
+			sNode[3] = await this.serializeProps(node);
+			sNode[4] = await this.serialize(node.children)??0
+			return nodeIdx;
 		}
 		if (node.shapeFlag & ShapeFlags.COMPONENT) {
 			// client referencenull
 			const id = (node.type as any).__reference_id;
 			if (id) {
-				return SNodeObjtoSNode({
+				const sNode = SNodeObjtoSNode({
 					__snode: true,
 					__reference_id: this.referenceIds.add(id),
-					props: await this.serialize({ ...(node.props ?? {}), key: node.key }).then((p) => Object.entries(p as Record<string, any>).filter(([k, v]) => v).map(([k, v]) => [this.tagIds.add(k), v])).then(v => v.length ? v : 0),
-					children: await this.serializeClientChildren(node.children).then(p => p ? [p] : null),
+					props: {},
+					children: [],
 				} satisfies SNodeObj);
+				const nodeIdx = this.referenceIds.add(sNode);
+				sNode[3] = await this.serializeProps(node);
+				sNode[4] = await this.serializeClientChildren(node.children)??0;
+				this.typeIndex.add(sNode[1]);
 				// satisfies SNode;
+				return nodeIdx;
 			}
 			// setup app context for app.provide/component
 			// https://github.com/vuejs/core/blob/461946175df95932986cbd7b07bb9598ab3318cd/packages/runtime-core/src/component.ts#L546-L548
@@ -100,10 +116,11 @@ class Serializer {
 			await setupComponent(instance, true);
 			const child = renderComponentRoot(instance);
 			setCurrentRenderingInstance(prev)
-			return this.serialize(child);
+			return await this.serialize(child);
 		}
 		console.error("[unexpected vnode]", [node.type, node.shapeFlag]);
 		throw new Error("unexpected vnode", { cause: node });
+		
 	}
 
 	async serializeClientChildren(children: VNodeNormalizedChildren) {
@@ -111,13 +128,13 @@ class Serializer {
 			return null;
 		}
 		tinyassert(typeof children === "object" && !Array.isArray(children));
-		let entries: [string, unknown][] = [];
+		let entries: [number, unknown][] = [];
 		for (const [k, v] of Object.entries(children)) {
 			if (typeof v === "function") {
-				entries.push([k, await this.serialize(v())]);
+				entries.push([this.referenceIds.add(k), await this.serialize(v())]);
 			}
 		}
-		return Object.fromEntries(entries);
+		return entries;
 	}
 }
 
@@ -142,7 +159,7 @@ type SNodeObj = {
 };
 type SNode = [
 	__snode: 1, // 0
-	__reference_id: string, // 1
+	__reference_id: number, // 1
 	type: any, // 2
 	props: any, // 3
 	children: any // 4
@@ -173,15 +190,23 @@ export function registerClientReference(v: any, __reference_id: string) {
 
 export type ReferenceMap = Record<string, unknown>;
 
-export function deserialize(data: unknown, referenceMap: ReferenceMap, tagMap: string[]) {
-	const deserializer = new Deserializer(referenceMap, tagMap);
-	return deserializer.deserialize(data);
+export function deserialize(data: unknown[], referenceMap: ReferenceMap) {
+	const deserializer = new Deserializer(referenceMap, data as any[]); //tagMap
+	return deserializer.deserialize(data[1]); //root
 }
 
 class Deserializer {
-	constructor(private referenceMap: ReferenceMap, private tagMap: string[]) { }
-
+	constructor(private referenceMap: ReferenceMap, private appMap: string[]) { }
+	private cache = new WeakMap<Object, unknown>();
+	private setCache(k: Object, v: unknown) {
+		this.cache.set(k, v);
+		return v;
+	}
+	private getCache(k: Object): unknown {
+		return this.cache.get(k);
+	}
 	deserialize(v: unknown): unknown {
+		// console.log("deserializing", v);
 		if (typeof v === "function") {
 			throw new Error("cannot serialize function", { cause: v });
 		}
@@ -194,57 +219,77 @@ class Deserializer {
 		) {
 			return v;
 		}
+		const r = this.getCache(v as Object);
+		if (r !== undefined) {
+			return r;
+		}
 		if (Array.isArray(v) && v[0] >= 1 /* __snode */) {
-			return this.deserializeNode(v as SNode);
+			return this.setCache(v, this.deserializeNode(v as SNode));
 		}
 		if (Array.isArray(v)) {
-			return v.map((v) => this.deserialize(v));
+			return this.setCache(v, v.map((v) => this.deserialize(v)));
 		}
-		return Object.fromEntries(
+		return this.setCache(v, Object.fromEntries(
 			Object.entries(v).map(([k, v]) => [k, this.deserialize(v)]),
-		);
+		));
 	}
 
 	deserializeNode(node: SNode) {
+		// console.log("node[4]", node[4])
+		const type = this.deserializeNodeType<any>(node[2]);
+		const oldchild = node[4];
+		node[4] = this.deserializeNodeType<any>(node[4]) ?? oldchild;
 		if (node[1] /* __reference_id */) {
-			const Component = this.referenceMap[node[1]];
+			const Component = tryCatchWrap(() => this.referenceMap[node[1]], (e) => {
+				console.error("reference not found: " + node)
+			});
 			if (!Component) {
-				console.log(this.referenceMap)
 				console.error(node);
 				throw new Error("reference not found: " + node[1], {
 					cause: node,
 				});
 			}
+			
 			return createVNode(
 				Component,
 				this.deserialize(this.buildProps(node[3])) as any,
-				this.deserializeClientChildren(node[4][0]),
+				this.deserializeClientChildren(node[4]),
 			);
 		}
-		const type = this.deserializeNodeType(node[2]);
-		if (type === Static && typeof node[4][0] === "string") {
-			return createStaticVNode(node[4][0], node[0]);
+		if (type === Static && typeof node[4] === "string") {
+			return createStaticVNode(node[4], node[0]);
 		}
 		return createVNode(
-			type,
+			type === 0 ? null : type,
 			this.deserialize(this.buildProps(node[3])) as any,
-			this.deserialize(node[4][0]),
+			this.deserialize(node[4]),
 		);
 	}
-
-	deserializeClientChildren(children: VNodeNormalizedChildren) {
-		if (children === null) {
+	// nó là array key và value của VNodeNormalizedChildren => Array<[key, VNode]>
+	deserializeClientChildren(children: Array<[number, VNode]> | number) {
+		if (children === null || children === 0) {
 			return null;
 		}
-		tinyassert(typeof children === "object" && !Array.isArray(children));
-		return Object.fromEntries(
-			Object.entries(children).map(([k, v]) => [k, () => this.deserialize(v)]),
+		tinyassert(Array.isArray(children) && children.every(([k, v]) => typeof k === "string"));
+		const res = Object.fromEntries(
+			children.map(([k, v]) => [this.deserializeNodeType(k), () => this.deserialize(v)]),
 		);
+		return res;
 	}
-	deserializeNodeType(s: any) {
-		s = this.tagMap[s - 1];
+	deserializeNodeType<T = unknown>(s: any): T {
+		if (s == 0) {
+			return "" as any;
+		};
+		if (typeof s === "string") return s as any;
+		if(Array.isArray(s)) {
+			return s.map((v: any) => this.deserializeNodeType(v)) as T;
+		}
+		s = this.appMap[s - 1];
+		// if (!s) {
+		// 	throw new Error("tag not found: " + s);
+		// }
 		if (typeof s === "string" && s.startsWith("$")) {
-			return Symbol.for(s.slice(1));
+			return Symbol.for(s.slice(1)) as any;
 		}
 		return s;
 	}
@@ -254,6 +299,13 @@ class Deserializer {
 		} catch (e) {
 			return {};
 		}
+	}
+}
+function tryCatchWrap<T>(fn: () => T, onError: (e: unknown) => T): T {
+	try {
+		return fn();
+	} catch (e) {
+		return onError(e);
 	}
 }
 //
