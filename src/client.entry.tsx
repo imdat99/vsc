@@ -18,8 +18,9 @@ async function callServer() {
 	const res = await fetch(url);
 	tinyassert(res.ok);
 	const result = await res.json()
+	window.__debug = result[0];
 	const referenceMap = await createReferenceMap(result[1]);
-	return () => deserialize(result[0], referenceMap);
+	return () => deserialize(result[0], referenceMap, result[2]);
 }
 async function main() {
 	if (window.location.search.includes("__nojs")) {
@@ -52,10 +53,9 @@ async function main() {
 
 		return () => render.value() as any;
 	});
-	// console.log("initRender", JSON.stringify(initRender, null, 2));
 
 	const app = createSSRApp(Root);
-	
+
 	// const el = document.getElementById("root");
 	// tinyassert(el);
 
@@ -82,7 +82,7 @@ class AsyncTaskManager<T> {
 		private options: {
 			onSucess: (v: T) => void;
 		},
-	) {}
+	) { }
 
 	push(task: () => Promise<T>) {
 		this.latest = task;

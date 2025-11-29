@@ -21,11 +21,11 @@ app.get("*", async (c) => {
 	const route = routes[url.pathname as "/"];
 	let Slot = () => <div>Not Found</div>;
 	if (route) {
-			const Page = (await route()).default;
-			Slot = () => <Page />;
+		const Page = (await route()).default;
+		Slot = () => <Page />;
 	}
 	const App = <LayoutRoot><Slot /></LayoutRoot>;
-	
+
 
 	if (url.searchParams.has("__serialize")) {
 		const serverApp = createSSRApp(() => null);
@@ -39,7 +39,7 @@ app.get("*", async (c) => {
 	}
 
 	// const referenceMap = await createReferenceMap(result.referenceIds);
-	
+
 	// const Root = () => deserialize(result.data, referenceMap);
 	// console.log("Root", JSON.stringify(Root(), null, 2));
 	const app = createSSRApp(App);
@@ -97,10 +97,10 @@ const routes = {
 // 		return () => <Layout>{slot}</Layout>;
 // 	}
 // }
-	// ,
-	// {
-	// 	props: ["url"],
-	// },
+// ,
+// {
+// 	props: ["url"],
+// },
 // );
 
 // https://github.com/remix-run/remix/blob/7f30f0bc976f0b97a020e81be33f90f68d4e527a/packages/remix-server-runtime/markup.ts#L7-L16
@@ -140,5 +140,5 @@ function buildBootstrapScript() {
 			});
 		}
 	});
-	return styles+script;
+	return styles + script;
 }

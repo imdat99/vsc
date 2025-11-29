@@ -3,9 +3,11 @@ import { ShapeFlags } from "@vue/shared";
 import {
 	type AppContext,
 	type ComponentInternalInstance,
+	Static,
 	type SuspenseBoundary,
 	type VNode,
 	type VNodeNormalizedChildren,
+	createStaticVNode,
 	createVNode,
 	isVNode,
 	// @ts-expect-error no type?
@@ -20,7 +22,8 @@ import {
 
 export type SerializeResult = {
 	data: unknown;
-	referenceIds: string[];
+	referenceIds: readonly string[];
+	tags: readonly string[];
 };
 
 export async function serialize(
@@ -29,14 +32,14 @@ export async function serialize(
 ): Promise<SerializeResult> {
 	const serializer = new Serializer(context);
 	const data = await serializer.serialize(input);
-	// console.log("serializing...", serializer.referenceIds);
-	return { data, referenceIds: [...serializer.referenceIds] };
+	// console.log("serializing...", serializer.tagIds.toArray());
+	return { data, referenceIds: serializer.referenceIds.toArray(), tags: serializer.tagIds.toArray() };
 }
 
 class Serializer {
-	referenceIds = new Set<string>();
-
-	constructor(private context?: AppContext) {}
+	referenceIds = new UniqueList<string>();
+	tagIds = new UniqueList<string>();
+	constructor(private context?: AppContext) { }
 
 	async serialize(v: unknown): Promise<unknown> {
 		if (typeof v === "function") {
@@ -69,23 +72,22 @@ class Serializer {
 	async serializeNode(node: VNode) {
 		if (typeof node.type === "symbol" || node.shapeFlag & ShapeFlags.ELEMENT) {
 			return SNodeObjtoSNode({
-				__snode: true,
-				type: serializeNodeType(node.type),
-				props: await this.serialize({ ...(node.props ?? {}), key: node.key }),
-				children: await this.serialize(node.children),
+				__snode: node?.staticCount || 1,
+				type: this.tagIds.add(serializeNodeType(node.type)),
+				props: await this.serialize({ ...(node.props ?? {}), key: node.key }).then((p) => Object.entries(p as Record<string, any>).filter(([k, v]) => v).map(([k, v]) => [this.tagIds.add(k), v])).then(v => v.length ? v : 0),
+				children: await this.serialize(node.children).then(p => p ? [p] : null),
 			} satisfies SNodeObj);
 			// satisfies SNode;
 		}
 		if (node.shapeFlag & ShapeFlags.COMPONENT) {
-			// client reference
+			// client referencenull
 			const id = (node.type as any).__reference_id;
 			if (id) {
-				this.referenceIds.add(id);
 				return SNodeObjtoSNode({
 					__snode: true,
-					__reference_id: id,
-					props: await this.serialize({ ...(node.props ?? {}), key: node.key }),
-					children: await this.serializeClientChildren(node.children),
+					__reference_id: this.referenceIds.add(id),
+					props: await this.serialize({ ...(node.props ?? {}), key: node.key }).then((p) => Object.entries(p as Record<string, any>).filter(([k, v]) => v).map(([k, v]) => [this.tagIds.add(k), v])).then(v => v.length ? v : 0),
+					children: await this.serializeClientChildren(node.children).then(p => p ? [p] : null),
 				} satisfies SNodeObj);
 				// satisfies SNode;
 			}
@@ -93,8 +95,8 @@ class Serializer {
 			// https://github.com/vuejs/core/blob/461946175df95932986cbd7b07bb9598ab3318cd/packages/runtime-core/src/component.ts#L546-L548
 			node.appContext = this.context ?? null;
 			const instance = createComponentInstance(node, null, null);
-            // make Vue think this instance is being SSR-rendered
-            const prev = setCurrentRenderingInstance(instance)
+			// make Vue think this instance is being SSR-rendered
+			const prev = setCurrentRenderingInstance(instance)
 			await setupComponent(instance, true);
 			const child = renderComponentRoot(instance);
 			setCurrentRenderingInstance(prev)
@@ -133,39 +135,32 @@ async function mapPromise<T, U>(
 
 type SNodeObj = {
 	__snode: true;
-	__reference_id?: string;
+	__reference_id?: number;
 	type?: any;
 	props: any;
 	children: any;
 };
 type SNode = [
-	__snode: true, // 0
-	__reference_id: string | null, // 1
-	type: any | null, // 2
+	__snode: 1, // 0
+	__reference_id: string, // 1
+	type: any, // 2
 	props: any, // 3
 	children: any // 4
 ];
 function SNodeObjtoSNode(o: SNodeObj): SNode {
 	return [
-		true,
-		o.__reference_id ?? null,
-		o.type ?? null,
+		Number(o.__snode),
+		o.__reference_id,
+		o.type,
 		o.props,
 		o.children,
-	];
+	].map(v => v ?? 0) as SNode;
 }
-function serializeNodeType(s: any) {
+function serializeNodeType(s: any): string {
 	if (typeof s === "symbol") {
 		return "$" + s.description;
 	}
-	return s;
-}
-
-function deserializeNodeType(s: any) {
-	if (typeof s === "string" && s.startsWith("$")) {
-		return Symbol.for(s.slice(1));
-	}
-	return s;
+	return s as "$";
 }
 
 export function registerClientReference(v: any, __reference_id: string) {
@@ -178,13 +173,13 @@ export function registerClientReference(v: any, __reference_id: string) {
 
 export type ReferenceMap = Record<string, unknown>;
 
-export function deserialize(data: unknown, referenceMap: ReferenceMap) {
-	const deserializer = new Deserializer(referenceMap);
+export function deserialize(data: unknown, referenceMap: ReferenceMap, tagMap: string[]) {
+	const deserializer = new Deserializer(referenceMap, tagMap);
 	return deserializer.deserialize(data);
 }
 
 class Deserializer {
-	constructor(private referenceMap: ReferenceMap) {}
+	constructor(private referenceMap: ReferenceMap, private tagMap: string[]) { }
 
 	deserialize(v: unknown): unknown {
 		if (typeof v === "function") {
@@ -197,10 +192,9 @@ class Deserializer {
 			typeof v === "boolean" ||
 			typeof v === "number"
 		) {
-			// console.log("primitive", v);
 			return v;
 		}
-		if (Array.isArray(v) && v[0] === true /* __snode */) {
+		if (Array.isArray(v) && v[0] >= 1 /* __snode */) {
 			return this.deserializeNode(v as SNode);
 		}
 		if (Array.isArray(v)) {
@@ -215,6 +209,7 @@ class Deserializer {
 		if (node[1] /* __reference_id */) {
 			const Component = this.referenceMap[node[1]];
 			if (!Component) {
+				console.log(this.referenceMap)
 				console.error(node);
 				throw new Error("reference not found: " + node[1], {
 					cause: node,
@@ -222,14 +217,18 @@ class Deserializer {
 			}
 			return createVNode(
 				Component,
-				this.deserialize(node[3]) as any,
-				this.deserializeClientChildren(node[4]),
+				this.deserialize(this.buildProps(node[3])) as any,
+				this.deserializeClientChildren(node[4][0]),
 			);
 		}
+		const type = this.deserializeNodeType(node[2]);
+		if (type === Static && typeof node[4][0] === "string") {
+			return createStaticVNode(node[4][0], node[0]);
+		}
 		return createVNode(
-			deserializeNodeType(node[2]),
-			this.deserialize(node[3]) as any,
-			this.deserialize(node[4]),
+			type,
+			this.deserialize(this.buildProps(node[3])) as any,
+			this.deserialize(node[4][0]),
 		);
 	}
 
@@ -242,10 +241,23 @@ class Deserializer {
 			Object.entries(children).map(([k, v]) => [k, () => this.deserialize(v)]),
 		);
 	}
+	deserializeNodeType(s: any) {
+		s = this.tagMap[s - 1];
+		if (typeof s === "string" && s.startsWith("$")) {
+			return Symbol.for(s.slice(1));
+		}
+		return s;
+	}
+	buildProps(props: [key: string, value: any][]): Record<string, any> {
+		try {
+			return Array.isArray(props) ? Object.fromEntries(props.map(([k, v]) => [this.deserializeNodeType(k), v])) : {};
+		} catch (e) {
+			return {};
+		}
+	}
 }
-
 //
-// vue utils
+// vue utilsany
 //
 
 // https://github.com/vuejs/core/blob/10d34a5624775f20437ccad074a97270ef74c3fb/packages/runtime-core/src/index.ts#L362-L383
@@ -265,5 +277,41 @@ const {
 		isSSR?: boolean,
 	) => Promise<void> | undefined;
 	renderComponentRoot: (instance: ComponentInternalInstance) => VNode;
-    setCurrentRenderingInstance: (instance: ComponentInternalInstance | null) => ComponentInternalInstance | null;
+	setCurrentRenderingInstance: (instance: ComponentInternalInstance | null) => ComponentInternalInstance | null;
 } = ssrUtils;
+
+// list lookup
+export class UniqueList<T> {
+	private arr: T[] = [];
+	private indexMap: Map<T, number> = new Map();
+
+	add(value: T): number {
+		const existing = this.indexMap.get(value);
+		if (existing !== undefined) return existing;
+
+		this.arr.push(value);
+		const idx = this.arr.length;
+		this.indexMap.set(value, idx);
+		return idx;
+	}
+
+	indexOf(value: T): number | undefined {
+		return this.indexMap.get(value);
+	}
+
+	has(value: T): boolean {
+		return this.indexMap.has(value);
+	}
+
+	get(index: number): T | undefined {
+		return this.arr[index];
+	}
+
+	toArray(): readonly T[] {
+		return this.arr;
+	}
+
+	get size(): number {
+		return this.arr.length;
+	}
+}
