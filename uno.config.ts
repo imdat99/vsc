@@ -15,18 +15,18 @@ export default defineConfig({
   // By default, `.ts` and `.js` files are NOT extracted.
   // If you want to extract them, use the following configuration.
   // It's necessary to add the following configuration if you use shadcn-vue or shadcn-svelte.
-  // content: {
-  //   pipeline: {
-  //     include: [
-  //       // the default
-  //       // /\.(vue|svelte|[jt]sx|mdx?|astro|elm|php|phtml|html)($|\?)/,
-  //       // include js/ts files
-  //       // "(components|src)/**/*.{js,ts,vue,jsx,tsx}",
-  //       "./src/**/*.{js,jsx,ts,tsx,vue,md,mdx,html,svelte,astro}",
-  //       "./src/**/*.server.{js,jsx,ts,tsx,vue,md,mdx,html,svelte,astro}",
-  //     ],
-  //   },
-  // },
+  content: {
+    pipeline: {
+      include: [
+        // the default
+        /\.(vue|svelte|[jt]sx|mdx?|astro|elm|php|phtml|html)($|\?)/,
+        // include js/ts files
+        "(components|src)/**/*.{js,ts,vue,jsx,tsx}",
+        "./src/**/*.{js,jsx,ts,tsx,vue,md,mdx,html,svelte,astro}",
+        "./src/**/*.server.{js,jsx,ts,tsx,vue,md,mdx,html,svelte,astro}",
+      ],
+    },
+  },
    theme: {
     colors: {
         primary: {

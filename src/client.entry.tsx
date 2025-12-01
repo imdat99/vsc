@@ -19,8 +19,8 @@ async function callServer() {
 	const res = await fetch(url);
 	tinyassert(res.ok);
 	const result = await res.json()
-	const referenceMap = await createReferenceMap(result[1].map((i: number) => [i, result[0][i-1]]));
-	return () => deserialize(result[0], referenceMap);
+	const referenceMap = await createReferenceMap(result[0].map((i: number) => [i, result[i]]));
+	return () => deserialize(result, referenceMap);
 }
 async function main() {
 	if (window.location.search.includes("__nojs")) {

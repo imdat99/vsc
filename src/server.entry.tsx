@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import { serveStatic } from '@hono/node-server/serve-static';
 import { streamText } from "hono/streaming";
 import { bootstrapModules } from "virtual:ssr-assets";
-
+import "uno.css"
 // import { serveStatic } from "hono/bun";
 import LayoutRoot from "./components/Layout/Root";
 const app = new Hono<any>();
@@ -31,15 +31,13 @@ app.get("*", async (c) => {
 		const serverApp = createSSRApp(() => null);
 		serverApp.provide("SERVER_REQUEST", { url });
 		serverApp.provide(ssrContextKey, { modules: new Set() });
-		const result = await serialize(App, serverApp._context);
 		c.header("Content-Type", "application/json; charset=UTF-8");
 		c.header("Content-Encoding", "Identity");
 		// c.header("Content-Type", "application/json; charset=UTF-8");
 		c.header("Content-Disposition", 'attachment; filename="f.txt"');
 		c.header("Cross-Origin-Opener-Policy", 'same-origin-allow-popups; report-to="gws"');
-		// return c.json(Object.values(result));
 		return streamText(c, async (stream) => {
-			await stream.write(JSON.stringify(Object.values(result)));
+			await serialize(App, serverApp._context).then(r => stream.write(JSON.stringify(r)));
 		});
 	}
 	const app = createSSRApp(App);
