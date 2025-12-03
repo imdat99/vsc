@@ -24,6 +24,7 @@ export default defineConfig({
         "(components|src)/**/*.{js,ts,vue,jsx,tsx}",
         "./src/**/*.{js,jsx,ts,tsx,vue,md,mdx,html,svelte,astro}",
         "./src/**/*.server.{js,jsx,ts,tsx,vue,md,mdx,html,svelte,astro}",
+        '../server/**/*.{ts,tsx,js,jsx,html}', 
       ],
     },
   },

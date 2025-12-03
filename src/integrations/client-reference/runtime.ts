@@ -20,8 +20,6 @@ async function resolveReference(id: string) {
 			// console.log("ssr import", file);
 		} else {
 			if (/^[A-Za-z]:/.test(file)) {
-				// import.meta.glob("/src/**/*", { import: "default", eager: true })
-				// Example: "D:/project/picpic/hono-vue/src/integrations/router/client.tsx"
 				const index = file.indexOf("/src/");
 				if (index !== -1) {
 					file = file.slice(index); // → "/src/integrations/router/client.tsx"

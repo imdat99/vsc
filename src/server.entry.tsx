@@ -1,42 +1,19 @@
 import { serveStatic } from '@hono/node-server/serve-static';
-import { createApp } from "honox/server";
+import { Hono } from 'hono';
+import vueRenderer from './routes/_renderer';
 // import { serveStatic } from "hono/bun";
 import { showRoutes } from "hono/dev";
-// const app = new Hono<any>();
-const app = createApp(
-	{
-    root: '/src/routes',
-    // init: options?.init,
-    // trailingSlash: options?.trailingSlash,
-    NOT_FOUND:
-      import.meta.glob('/src/routes/**/_404.(ts|tsx)', {
-        eager: true,
-      }),
-    ERROR:
-      import.meta.glob('/src/routes/**/_error.(ts|tsx)', {
-        eager: true,
-      }),
-    RENDERER:
-      import.meta.glob('/src/routes/**/_renderer.tsx', {
-        eager: true,
-      }),
-    MIDDLEWARE:
-      import.meta.glob('/src/routes/**/_middleware.(ts|tsx)', {
-        eager: true,
-      }),
-    ROUTES: import.meta.glob(
-        [
-          '/src/routes/**/!(_*|-*|$*|*.test|*.spec).(ts|tsx|md|mdx|vue)',
-          '/src/routes/.well-known/**/!(_*|-*|$*|*.test|*.spec).(ts|tsx|md|mdx|vue)',
-          '!/src/routes/**/-*/**/*',
-        ],
-        {
-          eager: true,
-        }
-      )
-  }
-);
+const app = new Hono<any>();
 app.use(serveStatic({ root: "./public" }));
+app.use(vueRenderer)
+app.get('/', async (c) => {
+  const home = await import('./routes/home.server.vue')
+  return c.render(home as any);
+});
+app.get('/sfc', async (c) => {
+  const home = await import('./routes/sfc/Page.server.vue')
+  return c.render(home as any);
+});
 app.get("/.well-known/appspecific/com.chrome.devtools.json", async (c) => {
 	return c.json({
 		"name": "VSC Demo",
