@@ -20,15 +20,17 @@ async function resolveReference(id: string) {
 			// console.log("ssr import", file);
 		} else {
 			if (/^[A-Za-z]:/.test(file)) {
+				// import.meta.glob("/src/**/*", { import: "default", eager: true })
 				// Example: "D:/project/picpic/hono-vue/src/integrations/router/client.tsx"
 				const index = file.indexOf("/src/");
 				if (index !== -1) {
 					file = file.slice(index); // → "/src/integrations/router/client.tsx"
 				}
+				console.log(file)
 			}
 		}
 		// console.log("file", file)
-		mod = await import(/* @vite-ignore */ file);
+		mod = await import(/* @vite-ignore */file);
 	} else {
 		const mods = await import("virtual:client-references" as string);
 		mod = await mods.default[file]();

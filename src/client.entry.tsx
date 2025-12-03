@@ -14,10 +14,10 @@ import "uno.css";
 
 // import { ssrRegisterHelper } from "/__vue-jsx-ssr-register-helper"
 async function callServer() {
-	const url = new URL(window.location.href);
-	url.searchParams.set("__serialize", "");
-	const res = await fetch(url);
-	tinyassert(res.ok);
+	const request = new Request(window.location.href, { method: "GET" });
+	request.headers.set("x-vsc", "true");
+	const res = await fetch(request);
+	// tinyassert(res.ok);
 	const result = await res.json()
 	const referenceMap = await createReferenceMap(result[0].map((i: number) => [i, result[i]]));
 	return () => deserialize(result, referenceMap);

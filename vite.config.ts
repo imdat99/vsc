@@ -13,21 +13,28 @@ import {
   createVirtualPlugin,
   vitePluginVueServer
 } from "./plugins/vue-server";
-
+import honox from "honox/vite";
 // https://vite.dev/config/
 // let browserManifest: Manifest;
 export default defineConfig((env) => ({
+  ssr: {
+    external: ["vue", "@vue/shared", "@vue/runtime-dom"]
+  },
   plugins: [
     // vue(),
     unocss({
-      applyExtractors: env.isSsrBuild ? true : false,
+      extractors: env.isSsrBuild ? undefined : [],
     }),
     vitePluginVueServer(),
-    vitePluginLogger(),
     vitePluginSsrMiddleware({
       entry: "src/server.entry.tsx",
       preview: path.resolve("dist/server/index.js"),
     }),
+    // honox({
+    //     client: { input: ['/src/client.entry.tsx'], jsxImportSource: "vue/jsx-runtime" },
+    //     entry: '/src/server.entry.tsx'
+    // }),
+    
     createVirtualPlugin("ssr-assets", async function () {
       const bootstrapModules: ManifestChunk[] = [];
       if (this.environment.mode === "dev") {
@@ -61,19 +68,19 @@ export default defineConfig((env) => ({
       )}`;
     }),
   ],
-  appType: "custom",
+  // appType: "custom",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  build: {
-    manifest: true,
-    outDir: env.isSsrBuild ? "dist/server" : "dist/public",
-    minify: false,
-    emptyOutDir: true,
-    // ssr: env.isSsrBuild
-  },
+  // build: {
+  //   manifest: true,
+  //   outDir: env.isSsrBuild ? "dist/server" : "dist/public",
+  //   minify: false,
+  //   emptyOutDir: true,
+  //   // ssr: env.isSsrBuild
+  // },
   //   builder: {
   //     sharedPlugins: true,
   //   }

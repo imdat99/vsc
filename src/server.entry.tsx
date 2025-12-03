@@ -1,71 +1,97 @@
-import { createSSRApp, defineComponent, ssrContextKey } from "vue";
-import { renderToString, renderToWebStream } from "vue/server-renderer";
-import { createReferenceMap } from "./integrations/client-reference/runtime";
-import { deserialize, serialize } from "./integrations/serialize";
-import { Hono } from "hono";
 import { serveStatic } from '@hono/node-server/serve-static';
-import { streamText } from "hono/streaming";
-import { bootstrapModules } from "virtual:ssr-assets";
-import "uno.css"
+import { createApp } from "honox/server";
 // import { serveStatic } from "hono/bun";
-import LayoutRoot from "./components/Layout/Root";
-const app = new Hono<any>();
+import { showRoutes } from "hono/dev";
+// const app = new Hono<any>();
+const app = createApp(
+	{
+    root: '/src/routes',
+    // init: options?.init,
+    // trailingSlash: options?.trailingSlash,
+    NOT_FOUND:
+      import.meta.glob('/src/routes/**/_404.(ts|tsx)', {
+        eager: true,
+      }),
+    ERROR:
+      import.meta.glob('/src/routes/**/_error.(ts|tsx)', {
+        eager: true,
+      }),
+    RENDERER:
+      import.meta.glob('/src/routes/**/_renderer.tsx', {
+        eager: true,
+      }),
+    MIDDLEWARE:
+      import.meta.glob('/src/routes/**/_middleware.(ts|tsx)', {
+        eager: true,
+      }),
+    ROUTES: import.meta.glob(
+        [
+          '/src/routes/**/!(_*|-*|$*|*.test|*.spec).(ts|tsx|md|mdx|vue)',
+          '/src/routes/.well-known/**/!(_*|-*|$*|*.test|*.spec).(ts|tsx|md|mdx|vue)',
+          '!/src/routes/**/-*/**/*',
+        ],
+        {
+          eager: true,
+        }
+      )
+  }
+);
 app.use(serveStatic({ root: "./public" }));
 app.get("/.well-known/appspecific/com.chrome.devtools.json", async (c) => {
 	return c.json({
 		"name": "VSC Demo",
 	});
 });
-app.get("*", async (c) => {
-	const url = new URL(c.req.url);
-	const route = routes[url.pathname as "/"];
-	let Slot = () => <div>Not Found</div>;
-	if (route) {
-		const Page = (await route()).default;
-		Slot = () => <Page />;
-	}
-	const App = <LayoutRoot><Slot /></LayoutRoot>;
+// app.get("*", async (c) => {
+// 	const url = new URL(c.req.url);
+// 	const route = routes[url.pathname as "/"];
+// 	let Slot = () => <div>Not Found</div>;
+// 	if (route) {
+// 		const Page = (await route()).default;
+// 		Slot = () => <Page />;
+// 	}
+// 	const App = <LayoutRoot><Slot /></LayoutRoot>;
 
 
-	if (url.searchParams.has("__serialize")) {
-		const serverApp = createSSRApp(() => null);
-		serverApp.provide("SERVER_REQUEST", { url });
-		serverApp.provide(ssrContextKey, { modules: new Set() });
-		c.header("Content-Type", "application/json; charset=UTF-8");
-		c.header("Content-Encoding", "Identity");
-		// c.header("Content-Type", "application/json; charset=UTF-8");
-		c.header("Content-Disposition", 'attachment; filename="f.txt"');
-		c.header("Cross-Origin-Opener-Policy", 'same-origin-allow-popups; report-to="gws"');
-		return streamText(c, async (stream) => {
-			await serialize(App, serverApp._context).then(r => stream.write(JSON.stringify(r)));
-		});
-	}
-	const app = createSSRApp(App);
-	const ctx = {};
-	const appStream = renderToWebStream(app, ctx);
-	return streamText(c, async (stream) => {
-		c.header("Content-Type", "text/html; charset=UTF-8");
-		c.header("Content-Encoding", "Identity");
-		await stream.write("<!DOCTYPE html><html lang='en'><head>");
-		await stream.write("<base href='" + url.origin + "'/>");
-		// await renderSSRHead(head).then((headString) => stream.write(headString.headTags.replace(/\n/g, "")));
-		await stream.write(`<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"rel="stylesheet"></link>`);
-		await stream.write(buildBootstrapScript());
-		await stream.write("</head><body class='font-sans bg-[#f9fafd] text-gray-800 antialiased flex flex-col'>");
-		await stream.pipe(appStream);
-		// let json = htmlEscape(JSON.stringify(Object.values(result)));
-		let jsonCtx = htmlEscape(JSON.stringify(JSON.stringify(ctx)));
-		// await stream.write(`<script>globalThis.__serialized=${json};</script>`);
-		await stream.write(`<script>globalThis.__SSR_CONTEXT__=JSON.parse(${jsonCtx});</script>`);
-		await stream.write("</body></html>");
-	});
-});
-const routes = {
-	"/": () => import("./routes/home.server.vue"),
-	// "/highlight": () => import("./routes/highlight/page"),
-	// "/slow": () => import("./routes/slow/page"),
-	"/sfc": () => import("./routes/sfc/Page.server.vue"),
-};
+// 	if (url.searchParams.has("__serialize")) {
+// 		const serverApp = createSSRApp(() => null);
+// 		serverApp.provide("SERVER_REQUEST", { url });
+// 		serverApp.provide(ssrContextKey, { modules: new Set() });
+// 		c.header("Content-Type", "application/json; charset=UTF-8");
+// 		c.header("Content-Encoding", "Identity");
+// 		// c.header("Content-Type", "application/json; charset=UTF-8");
+// 		c.header("Content-Disposition", 'attachment; filename="f.txt"');
+// 		c.header("Cross-Origin-Opener-Policy", 'same-origin-allow-popups; report-to="gws"');
+// 		return streamText(c, async (stream) => {
+// 			await serialize(App, serverApp._context).then(r => stream.write(JSON.stringify(r)));
+// 		});
+// 	}
+// 	const app = createSSRApp(App);
+// 	const ctx = {};
+// 	const appStream = renderToWebStream(app, ctx);
+// 	return streamText(c, async (stream) => {
+// 		c.header("Content-Type", "text/html; charset=UTF-8");
+// 		c.header("Content-Encoding", "Identity");
+// 		await stream.write("<!DOCTYPE html><html lang='en'><head>");
+// 		await stream.write("<base href='" + url.origin + "'/>");
+// 		// await renderSSRHead(head).then((headString) => stream.write(headString.headTags.replace(/\n/g, "")));
+// 		await stream.write(`<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"rel="stylesheet"></link>`);
+// 		await stream.write(buildBootstrapScript());
+// 		await stream.write("</head><body class='font-sans bg-[#f9fafd] text-gray-800 antialiased flex flex-col'>");
+// 		await stream.pipe(appStream);
+// 		// let json = htmlEscape(JSON.stringify(Object.values(result)));
+// 		let jsonCtx = htmlEscape(JSON.stringify(JSON.stringify(ctx)));
+// 		// await stream.write(`<script>globalThis.__serialized=${json};</script>`);
+// 		await stream.write(`<script>globalThis.__SSR_CONTEXT__=JSON.parse(${jsonCtx});</script>`);
+// 		await stream.write("</body></html>");
+// 	});
+// });
+// const routes = {
+// 	"/": () => import("./routes/home.server.vue"),
+// 	// "/highlight": () => import("./routes/highlight/page"),
+// 	// "/slow": () => import("./routes/slow/page"),
+// 	"/sfc": () => import("./routes/sfc/Page.server.vue"),
+// };
 
 
 
@@ -96,27 +122,6 @@ const ESCAPE_LOOKUP = {
 
 const ESCAPE_REGEX = /[&><\u2028\u2029]/g;
 
+showRoutes(app)
 export default app
-/**
- * buildBootstrapScript, if isEntry is true, build script and link tags for bootstrap else is preload tags
- * @param chunks vite manifest chunks
- * @returns bootstrap script string <script>...</script>, <link>...</link> tags, preloaded as needed
- */
-function buildBootstrapScript() {
-	let script = "";
-	let styles = "";
-	bootstrapModules.forEach((chunk) => {
-		if (chunk.isEntry) {
-			script += `<script type="module" src="/${chunk.file}"></script>`;
-			(chunk.css || []).forEach((cssFile) => {
-				styles += `<link rel="stylesheet" crossorigin href="/${cssFile}">`;
-			});
-		} else {
-			script += `<link rel="modulepreload" href="/${chunk.file}">`;
-			(chunk.css || []).forEach((cssFile) => {
-				styles += `<link rel="preload" as="style" href="/${cssFile}">`;
-			});
-		}
-	});
-	return styles + script;
-}
+
