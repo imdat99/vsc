@@ -4,6 +4,7 @@ import {
 	defineComponent,
 	provide,
 	readonly,
+	ref,
 	shallowRef,
 	watch,
 } from "vue";
@@ -20,9 +21,7 @@ async function callServer() {
 	// tinyassert(res.ok);
 	const result = await res.json()
 	const referenceMap = await createReferenceMap(result[0].map((i: number) => [i, result[i]]));
-	const abc = deserialize(result, referenceMap);
-	console.log("abc", abc);
-	return () => abc;
+	return () => deserialize(result, referenceMap);
 }
 async function main() {
 	if (window.location.search.includes("__nojs")) {
@@ -37,9 +36,7 @@ async function main() {
 		name: "Root",
 		setup() {
 			const render = shallowRef(initRender);
-			watch(render, (v) => {
-				console.log("render changed", v);
-			});
+			const currentUrl = ref(window.location.href);
 			const isLoading = shallowRef(false);
 			provide("isLoading", readonly(isLoading));
 
@@ -49,13 +46,13 @@ async function main() {
 					isLoading.value = false;
 				},
 			});
-
-			listenBrowserHistory(() => {
+			listenBrowserHistory((_d, url) => {
+				if (url === currentUrl.value) {
+					return;
+				}
 				isLoading.value = true;
-				navManager.push(async () => {
-					const initRender = await callServer();
-					return initRender;
-				});
+				currentUrl.value = url?.toString() || "";
+				navManager.push(callServer);
 			});
 
 			return () => render.value() as any;

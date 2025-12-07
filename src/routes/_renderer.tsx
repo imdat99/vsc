@@ -1,16 +1,12 @@
-// import { jsxRenderer } from 'hono/jsx-renderer'
 import type { Context, MiddlewareHandler } from 'hono';
-// import type { Context, PropsForRenderer } from 'hono/'
 import { serialize } from '@/integrations/serialize';
 import { createHead, renderSSRHead } from "@unhead/vue/server";
 import { PropsWithChildren } from 'hono/jsx';
 import { bootstrapModules } from "virtual:ssr-assets";
 import { Component, createSSRApp, ssrContextKey } from 'vue';
 import { Fragment } from 'vue/jsx-runtime';
+import { renderToWebStream } from "vue/server-renderer";
 import LayoutRoot from '@/components/Layout/Root';
-// console.log((renderToString(jsx(Link, { href: "/app/style.css", rel: "stylesheet" }))));
-
-// import { PropsForRenderer } from 'node_modules/hono/dist/types/context';
 
 type PropsForRenderer = {
   Layout: VueComponent;
@@ -31,10 +27,10 @@ const createRenderer =
       const head = createHead();
       const node = component ? await component({ Children: children?.default ? children.default : children, Layout, ...props }, c) : children
       const isVsc = c.req.header("x-vsc") === "true"
+      const serverApp = createSSRApp(isVsc ? () => null : node);
+      serverApp.use(head);
+      serverApp.provide(Symbol("RequestContext"), c);
       if (isVsc) {
-        const serverApp = createSSRApp(() => null);
-        serverApp.use(head);
-        serverApp.provide(Symbol("RequestContext"), c);
         serverApp.provide(ssrContextKey, { modules: new Set() });
         c.header("Content-Type", "application/json; charset=UTF-8");
         c.header("Content-Encoding", "Identity");
@@ -45,11 +41,7 @@ const createRenderer =
       }
 
       if (options?.stream) {
-        const module = await import('vue/server-renderer')
-        const ssrApp = createSSRApp(node)
-        ssrApp.use(head);
-        ssrApp.provide(Symbol("RequestContext"), c)
-        const stream = module.renderToWebStream(ssrApp)
+        const stream = renderToWebStream(serverApp)
         if (options.stream === true) {
           c.header('Transfer-Encoding', 'chunked')
           c.header('Content-Type', 'text/html; charset=UTF-8')

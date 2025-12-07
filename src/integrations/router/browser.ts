@@ -1,21 +1,21 @@
 // cf.
 // https://github.com/TanStack/router/blob/f6e9ab3b60ca42401923648649930db4ae97fc00/packages/history/src/index.ts#L301-L314
 
-export function listenBrowserHistory(onNavigation: () => void) {
+export function listenBrowserHistory(onNavigation: (data: any, url?: string | URL | null | undefined) => void) {
 	window.addEventListener("pushstate", onNavigation);
 	window.addEventListener("popstate", onNavigation);
 
 	const oldPushState = window.history.pushState;
 	window.history.pushState = function (...args) {
 		const res = oldPushState.apply(this, args);
-		onNavigation();
+		onNavigation(args[0], args[2]);
 		return res;
 	};
 
 	const oldReplaceState = window.history.replaceState;
 	window.history.replaceState = function (...args) {
 		const res = oldReplaceState.apply(this, args);
-		onNavigation();
+		onNavigation(args[0], args[2]);
 		return res;
 	};
 

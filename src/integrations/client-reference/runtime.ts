@@ -24,7 +24,6 @@ async function resolveReference(id: string) {
 				if (index !== -1) {
 					file = file.slice(index); // → "/src/integrations/router/client.tsx"
 				}
-				console.log(file)
 			}
 		}
 		// console.log("file", file)
