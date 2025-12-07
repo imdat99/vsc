@@ -20,7 +20,9 @@ async function callServer() {
 	// tinyassert(res.ok);
 	const result = await res.json()
 	const referenceMap = await createReferenceMap(result[0].map((i: number) => [i, result[i]]));
-	return () => deserialize(result, referenceMap);
+	const abc = deserialize(result, referenceMap);
+	console.log("abc", abc);
+	return () => abc;
 }
 async function main() {
 	if (window.location.search.includes("__nojs")) {
@@ -33,31 +35,31 @@ async function main() {
 	const initRender = await callServer();
 	const Root = defineComponent({
 		name: "Root",
-		setup () {
-		const render = shallowRef(initRender);
-		watch(render, (v) => {
-			console.log("render changed", v);
-		});
-		const isLoading = shallowRef(false);
-		provide("isLoading", readonly(isLoading));
-
-		const navManager = new AsyncTaskManager<() => void>({
-			onSucess: (result) => {
-				render.value = result;
-				isLoading.value = false;
-			},
-		});
-
-		listenBrowserHistory(() => {
-			isLoading.value = true;
-			navManager.push(async () => {
-				const initRender = await callServer();
-				return initRender;
+		setup() {
+			const render = shallowRef(initRender);
+			watch(render, (v) => {
+				console.log("render changed", v);
 			});
-		});
+			const isLoading = shallowRef(false);
+			provide("isLoading", readonly(isLoading));
 
-		return () => render.value() as any;
-	}
+			const navManager = new AsyncTaskManager<() => void>({
+				onSucess: (result) => {
+					render.value = result;
+					isLoading.value = false;
+				},
+			});
+
+			listenBrowserHistory(() => {
+				isLoading.value = true;
+				navManager.push(async () => {
+					const initRender = await callServer();
+					return initRender;
+				});
+			});
+
+			return () => render.value() as any;
+		}
 	});
 
 	const app = createSSRApp(Root);

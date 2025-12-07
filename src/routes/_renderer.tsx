@@ -41,7 +41,7 @@ const createRenderer =
         c.header("Content-Disposition", 'attachment; filename="f.txt"');
         c.header("Cross-Origin-Opener-Policy", 'same-origin-allow-popups; report-to="gws"');
         const res = await serialize(node, serverApp._context)
-        return c.json(res);
+        return c.json(Object.values(res));
       }
 
       if (options?.stream) {

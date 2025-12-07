@@ -7,12 +7,15 @@ const app = new Hono<any>();
 app.use(serveStatic({ root: "./public" }));
 app.use(vueRenderer)
 app.get('/', async (c) => {
-  const home = await import('./routes/home.server.vue')
-  return c.render(home as any);
+	const home = await import('./routes/home.server.vue')
+	return c.render(home as any);
 });
 app.get('/sfc', async (c) => {
-  const home = await import('./routes/sfc/Page.server.vue')
-  return c.render(home as any);
+	const home = await import('./routes/sfc/Page.server.vue')
+	return c.render(home as any);
+});
+app.notFound(async (c) => {
+	return c.render(await import('./routes/_404.server.vue') as any);
 });
 app.get("/.well-known/appspecific/com.chrome.devtools.json", async (c) => {
 	return c.json({
@@ -101,4 +104,3 @@ const ESCAPE_REGEX = /[&><\u2028\u2029]/g;
 
 showRoutes(app)
 export default app
-
