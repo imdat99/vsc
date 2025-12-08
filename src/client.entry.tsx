@@ -12,6 +12,7 @@ import { type SerializeResult, deserialize } from "./integrations/serialize";
 import { createReferenceMap } from "./integrations/client-reference/runtime";
 import { listenBrowserHistory } from "./integrations/router/browser";
 import "uno.css";
+import { withErrorBoundary } from "./lib/hoc/withErrorBoundary";
 
 // import { ssrRegisterHelper } from "/__vue-jsx-ssr-register-helper"
 async function callServer() {
@@ -59,7 +60,7 @@ async function main() {
 		}
 	});
 
-	const app = createSSRApp(Root);
+	const app = createSSRApp(withErrorBoundary(Root));
 
 	// const el = document.getElementById("root");
 	// tinyassert(el);

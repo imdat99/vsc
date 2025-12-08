@@ -9,11 +9,17 @@
     "cf-typegen": "wrangler types --env-interface CloudflareBindings"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.946.0",
+    "@aws-sdk/s3-presigned-post": "^3.946.0",
+    "@aws-sdk/s3-request-presigner": "^3.946.0",
+    "@hiogawa/tiny-rpc": "^0.2.3-pre.18",
     "@hiogawa/utils": "^1.7.0",
     "@hono/node-server": "^1.19.6",
     "@unhead/vue": "^2.0.19",
+    "clsx": "^2.1.1",
     "hono": "^4.10.7",
     "messagepack": "^1.1.12",
+    "tailwind-merge": "^3.4.0",
     "vue": "^3.5.25",
     "vue-router": "^4.6.3"
   },
