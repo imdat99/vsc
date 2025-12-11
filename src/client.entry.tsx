@@ -60,7 +60,7 @@ async function main() {
 		}
 	});
 
-	const app = createSSRApp(withErrorBoundary(Root));
+	const app = createSSRApp(Root);
 
 	// const el = document.getElementById("root");
 	// tinyassert(el);

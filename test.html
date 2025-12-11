@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS Masonry - In Place Expansion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'pin-red': '#E60023',
+                        'pin-red-hover': '#AD081B',
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow-y: scroll; }
+
+        #gallery-container {
+            position: relative;
+            width: 100%;
+            margin: 0 auto;
+            transition: height 0.5s ease;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .masonry-item {
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 1;
+            /* Transition */
+            transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s ease;
+            will-change: transform, width, height, opacity;
+            transform-origin: center top;
+        }
+
+        /* Loading */
+        .masonry-item.is-loading {
+            opacity: 1;
+            transition: none !important;
+            z-index: 1;
+        }
+        .masonry-item.is-loading .pin-card {
+            background: #e5e7eb;
+            background-image: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 50%, #e5e7eb 100%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            box-shadow: none;
+        }
+        .masonry-item.is-loading .pin-card > * { opacity: 0; }
+        .pin-card > * { transition: opacity 0.5s ease; opacity: 1; }
+
+        .pin-card {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            transition: box-shadow 0.2s ease, background-color 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- STYLES CHO QUẢNG CÁO (AD) --- */
+        .masonry-item.is-ad {
+            z-index: 5;
+        }
+        .masonry-item.is-ad .pin-card {
+            border: 1px solid #e1e1e1; /* Viền nhẹ để tách biệt */
+        }
+        /* Nhãn Promoted */
+        .ad-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #666;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+        }
+
+        /* Expanded State */
+        .masonry-item.expanded { z-index: 30; }
+        .masonry-item.expanded .pin-card {
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .pin-details {
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: opacity 0.4s ease 0.2s;
+        }
+        .masonry-item.expanded .pin-details {
+            opacity: 1;
+            max-height: 1000px;
+        }
+
+        /* FULLSCREEN VIEW ANIMATION */
+        #fullscreen-view {
+            /* Transition cả opacity và transform để tạo hiệu ứng Zoom */
+            transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 0;
+            transform: scale(0.92); /* Thu nhỏ nhẹ khi ẩn */
+            pointer-events: none;
+        }
+
+        /* Trạng thái Active (Hiện) */
+        #fullscreen-view.active {
+            opacity: 1;
+            transform: scale(1); /* Phóng ra kích thước thật */
+            pointer-events: auto;
+        }
+
+        /* Class helper để ẩn khỏi DOM khi không dùng */
+        #fullscreen-view.hidden {
+            display: none;
+        }
+
+        /* Custom scrollbar for fullscreen if needed */
+        #fullscreen-view::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        #fullscreen-view::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+        }
+
+        html { scroll-behavior: smooth; }
+
+    </style>
+</head>
+<body class="bg-white text-[#111111] antialiased">
+
+    <!-- Header -->
+    <header class="bg-white sticky top-0 z-40 px-4 py-3 flex justify-between items-center w-full shadow-sm border-b border-gray-100 mb-6">
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <div onclick="resetLayout()" class="w-10 h-10 bg-pin-red rounded-full flex items-center justify-center text-white font-bold text-xl cursor-pointer hover:bg-pin-red-hover transition">P</div>
+            <span class="font-bold text-lg hidden sm:block">Pinterest In-Place</span>
+        </div>
+        <div class="flex-1 px-4 max-w-2xl text-center text-sm text-gray-500">
+            <span id="status-text">Click vào ảnh để mở rộng tại chỗ</span>
+        </div>
+        <div class="flex items-center gap-2">
+             <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 cursor-pointer transition">
+                <svg class="w-6 h-6 text-gray-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+             </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="w-full px-2 pb-20">
+        <div id="gallery-container"></div>
+
+        <div id="loader" class="h-20 w-full flex justify-center items-center mt-8 opacity-0 transition-opacity">
+            <svg class="animate-spin h-8 w-8 text-pin-red" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
+
+        <div id="end-message" class="hidden h-20 w-full flex justify-center items-center text-gray-500 font-medium">
+            Đã hiển thị hết ảnh.
+        </div>
+    </main>
+
+    <!-- FULLSCREEN OVERLAY -->
+    <div id="fullscreen-view" class="fixed inset-0 bg-black/95 z-[100] hidden flex flex-col items-center justify-center">
+        <!-- Toolbar -->
+        <div class="absolute top-0 left-0 w-full p-4 flex justify-between items-center z-50 bg-gradient-to-b from-black/60 to-transparent">
+            <div class="text-white font-bold text-lg hidden sm:block">Chế độ xem lớn</div>
+            <div class="flex items-center gap-2 sm:gap-4">
+
+                <!-- Smart Zoom Button -->
+                <button onclick="handleSmartZoom()" class="bg-white/20 hover:bg-white/30 text-white p-3 rounded-full backdrop-blur-sm transition border border-white/10" title="Smart Fill Screen">
+                    <!-- Icon Expand/Collapse -->
+                    <svg id="icon-smart-expand" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                    <svg id="icon-smart-compress" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4l5 5m0 0l-5 5m5-5h12m-5 5l5-5m0 0l-5-5"></path></svg>
+                </button>
+
+                <div class="w-px h-8 bg-white/20 mx-1 sm:mx-2"></div>
+
+                <button onclick="handleZoom('out')" class="bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-sm transition" title="Thu nhỏ">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+                </button>
+                <span id="zoom-level" class="text-white font-mono text-sm w-12 text-center select-none">100%</span>
+                <button onclick="handleZoom('in')" class="bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-sm transition" title="Phóng to">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                </button>
+
+                <div class="w-px h-8 bg-white/20 mx-1 sm:mx-2"></div>
+
+                <button onclick="handleShare()" class="bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-sm transition" title="Chia sẻ">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                </button>
+                <button onclick="closeFullscreen()" class="bg-white/20 hover:bg-red-600 text-white p-3 rounded-full backdrop-blur-sm transition ml-2" title="Đóng">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Image Area -->
+        <div class="w-full h-full flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing" onmousedown="startDrag(event)" onmousemove="drag(event)" onmouseup="endDrag()" onmouseleave="endDrag()">
+            <!-- Quan trọng: max-w-full max-h-full để ảnh Fit screen ban đầu -->
+            <img id="fullscreen-img" src="" class="max-w-full max-h-full object-contain transition-transform duration-300 ease-out shadow-2xl origin-center" style="transform: scale(1) translate(0px, 0px);">
+        </div>
+    </div>
+
+    <script>
+        const container = document.getElementById('gallery-container');
+        const loader = document.getElementById('loader');
+        const endMessage = document.getElementById('end-message');
+        const statusText = document.getElementById('status-text');
+
+        // --- FULLSCREEN LOGIC ---
+        const fullscreenView = document.getElementById('fullscreen-view');
+        const fullscreenImg = document.getElementById('fullscreen-img');
+        const zoomLevelText = document.getElementById('zoom-level');
+        const iconSmartExpand = document.getElementById('icon-smart-expand');
+        const iconSmartCompress = document.getElementById('icon-smart-compress');
+
+        let currentScale = 1;
+        let currentTranslateX = 0;
+        let currentTranslateY = 0;
+        let isDragging = false;
+        let startX, startY;
+
+        function openFullscreen(url) {
+            fullscreenImg.src = url;
+
+            // 1. Xóa class hidden (display: none)
+            fullscreenView.classList.remove('hidden');
+
+            // 2. Force reflow để trình duyệt nhận diện trạng thái ban đầu (scale 0.95, opacity 0)
+            void fullscreenView.offsetWidth;
+
+            // 3. Thêm class active để kích hoạt transition sang trạng thái hiện (scale 1, opacity 1)
+            fullscreenView.classList.add('active');
+
+            // Reset zoom state
+            currentScale = 1;
+            currentTranslateX = 0;
+            currentTranslateY = 0;
+            updateTransform();
+
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeFullscreen() {
+            // 1. Xóa class active để kích hoạt transition về trạng thái ẩn (scale 0.95, opacity 0)
+            fullscreenView.classList.remove('active');
+
+            // 2. Đợi animation chạy xong (0.4s) rồi mới thêm display: none
+            setTimeout(() => {
+                fullscreenView.classList.add('hidden');
+                fullscreenImg.src = '';
+                document.body.style.overflow = '';
+            }, 400); // Khớp với duration trong CSS
+        }
+
+        // --- SMART ZOOM LOGIC ---
+        function handleSmartZoom() {
+            // Nếu đang zoom in rồi -> Reset về Fit (100%)
+            if (currentScale > 1.05) { // 1.05 để tránh sai số nhỏ
+                currentScale = 1;
+                currentTranslateX = 0;
+                currentTranslateY = 0;
+            }
+            else {
+                // Đang Fit -> Tính toán scale để Fill Screen
+                // Lấy kích thước thực tế của ảnh đang hiển thị
+                const rect = fullscreenImg.getBoundingClientRect();
+                const viewportW = window.innerWidth;
+                const viewportH = window.innerHeight;
+
+                // Tính tỷ lệ cần phóng để lấp đầy chiều rộng hoặc chiều cao
+                const scaleW = viewportW / rect.width;
+                const scaleH = viewportH / rect.height;
+
+                // Chọn tỷ lệ lớn hơn để đảm bảo "Fill" (Lấp đầy)
+                // Hoặc chọn tỷ lệ nhỏ hơn để "Fit" (đã làm mặc định).
+                // Ở đây ta muốn Fill -> dùng Math.max
+
+                let targetScale = Math.max(scaleW, scaleH);
+
+                currentScale = targetScale;
+
+                // Reset vị trí về giữa khi smart zoom
+                currentTranslateX = 0;
+                currentTranslateY = 0;
+            }
+            updateTransform();
+        }
+
+        function handleZoom(type) {
+            if (type === 'in') {
+                currentScale += 0.25;
+            } else {
+                if (currentScale > 0.5) currentScale -= 0.25;
+            }
+            updateTransform();
+        }
+
+        function updateTransform() {
+            fullscreenImg.style.transform = `scale(${currentScale}) translate(${currentTranslateX / currentScale}px, ${currentTranslateY / currentScale}px)`;
+
+            // Update Text
+            zoomLevelText.innerText = `${Math.round(currentScale * 100)}%`;
+
+            // Update Cursor & Icon
+            if (currentScale > 1.01) {
+                fullscreenImg.parentElement.style.cursor = 'grab';
+                // Đổi icon sang chế độ thu nhỏ
+                iconSmartExpand.classList.add('hidden');
+                iconSmartCompress.classList.remove('hidden');
+            } else {
+                fullscreenImg.parentElement.style.cursor = 'default';
+                // Đổi icon sang chế độ phóng to
+                iconSmartExpand.classList.remove('hidden');
+                iconSmartCompress.classList.add('hidden');
+
+                // Snap back to center if fitted
+                currentTranslateX = 0;
+                currentTranslateY = 0;
+            }
+        }
+
+        function handleShare() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Ảnh tuyệt đẹp từ Pinterest',
+                    text: 'Hãy xem bức ảnh này!',
+                    url: fullscreenImg.src
+                }).catch(console.error);
+            } else {
+                const tempInput = document.createElement('input');
+                document.body.appendChild(tempInput);
+                tempInput.value = fullscreenImg.src;
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                alert('Đã sao chép liên kết ảnh vào clipboard!');
+            }
+        }
+
+        // Drag Logic
+        function startDrag(e) {
+            if (currentScale <= 1.01) return; // Chỉ drag khi đã zoom
+            e.preventDefault();
+            isDragging = true;
+            startX = e.clientX - currentTranslateX;
+            startY = e.clientY - currentTranslateY;
+            fullscreenImg.parentElement.style.cursor = 'grabbing';
+            // Tắt transition khi drag để mượt mà
+            fullscreenImg.style.transition = 'none';
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            currentTranslateX = e.clientX - startX;
+            currentTranslateY = e.clientY - startY;
+
+            fullscreenImg.style.transform = `scale(${currentScale}) translate(${currentTranslateX / currentScale}px, ${currentTranslateY / currentScale}px)`;
+        }
+
+        function endDrag() {
+            if (!isDragging) return;
+            isDragging = false;
+            if (currentScale > 1) fullscreenImg.parentElement.style.cursor = 'grab';
+            // Bật lại transition
+            fullscreenImg.style.transition = 'transform 0.3s ease-out';
+        }
+
+
+        // --- CONFIG ---
+        const MAX_ITEMS = 60;
+
+        const state = {
+            items: [],
+            fillers: [],
+            columnCount: 4,
+            gap: 16,
+            colWidth: 236,
+            isLoading: false,
+            isFinished: false
+        };
+
+        // --- DATA ---
+        let globalId = 0;
+        function generateItems(count) {
+            const newItems = [];
+            const aspectRatios = [0.7, 1.0, 1.2, 1.5, 0.8];
+
+            for(let i=0; i<count; i++) {
+                globalId++;
+
+                // Logic chèn Quảng cáo: Cứ mỗi 8 item thì có 1 quảng cáo
+                const isAd = (globalId % 8 === 0);
+
+                if (isAd) {
+                     newItems.push({
+                        id: globalId,
+                        url: `https://picsum.photos/800/600?random=${globalId}`,
+                        title: `Quảng cáo Tài trợ #${globalId}`,
+                        author: `Brand Name`,
+                        aspectRatio: 0.75, // 4:3
+                        isExpanded: false,
+                        isAd: true,
+                        adDesc: "Sản phẩm tốt nhất cho ngôi nhà của bạn. Mua ngay hôm nay để nhận ưu đãi."
+                    });
+                } else {
+                    const ratio = aspectRatios[Math.floor(Math.random() * aspectRatios.length)];
+                    const reqW = 400;
+                    const reqH = Math.round(reqW * ratio);
+                    newItems.push({
+                        id: globalId,
+                        url: `https://picsum.photos/${reqW}/${reqH}?random=${globalId}`,
+                        title: `Pin ${globalId}`,
+                        author: `Creator ${globalId}`,
+                        aspectRatio: ratio,
+                        isExpanded: false,
+                        isAd: false
+                    });
+                }
+            }
+            return newItems;
+        }
+
+        // --- DOM CREATION ---
+        function createItemDOM(itemData, onLoadCallback) {
+            const el = document.createElement('div');
+            el.dataset.id = itemData.id;
+
+            let classes = 'masonry-item group is-loading';
+            if (itemData.isAd) classes += ' is-ad';
+            el.className = classes;
+
+            el.onclick = (e) => {
+                if(e.target.closest('button')) {
+                    if (itemData.isAd) {
+                        alert("Chuyển hướng đến trang đích quảng cáo!");
+                        e.stopPropagation();
+                    }
+                    return;
+                }
+                if (itemData.isAd) return;
+                toggleExpand(itemData, el); // Truyền thêm el để dùng cho scroll
+            };
+
+            let innerHTML = '';
+
+            if (itemData.isAd) {
+                // --- AD LAYOUT ---
+                innerHTML = `
+                    <div class="pin-card relative bg-gray-50 border-2 border-transparent hover:border-gray-200">
+                        <div class="ad-badge">Được tài trợ</div>
+                        <div class="relative w-full bg-gray-200 overflow-hidden flex-shrink-0">
+                            <div style="padding-bottom: ${itemData.aspectRatio * 100}%"></div>
+                            <img src="${itemData.url}" class="pin-image absolute top-0 left-0 w-full h-full object-cover">
+                             <div class="absolute bottom-4 right-4 z-20">
+                                <button class="bg-blue-600 text-white px-5 py-2 rounded-full font-bold text-sm hover:bg-blue-700 shadow-lg transition transform hover:scale-105">
+                                    Mua ngay ↗
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-white flex flex-col flex-1 justify-center">
+                            <h3 class="font-bold text-lg truncate mb-1 text-gray-900">${itemData.title}</h3>
+                            <p class="text-sm text-gray-500 line-clamp-2">${itemData.adDesc}</p>
+                            <div class="mt-2 text-xs font-bold text-gray-400 uppercase tracking-wide">Brand Name</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // --- NORMAL ITEM LAYOUT ---
+                innerHTML = `
+                    <div class="pin-card relative">
+                        <div class="relative w-full bg-gray-200 overflow-hidden flex-shrink-0" id="img-container-${itemData.id}">
+                            <div style="padding-bottom: ${itemData.aspectRatio * 100}%"></div>
+                            <img src="${itemData.url}" class="pin-image absolute top-0 left-0 w-full h-full object-cover">
+                             <div class="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-3 flex flex-col justify-between">
+                                <div class="flex justify-end">
+                                    <button class="bg-pin-red text-white px-4 py-2 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-md">Lưu</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white flex flex-col flex-1">
+                            <div class="pin-details">
+                                <div class="p-4">
+                                    <h3 class="font-bold text-xl mb-2">${itemData.title}</h3>
+                                    <div class="flex items-center gap-2 mb-3 mt-1">
+                                        <div class="w-8 h-8 rounded-full bg-gray-200"></div>
+                                        <div class="text-xs">
+                                            <p class="font-bold">${itemData.author}</p>
+                                            <p class="text-gray-500">Người sáng tạo</p>
+                                        </div>
+                                        <button class="ml-auto bg-gray-100 px-3 py-1.5 rounded-full font-bold text-xs hover:bg-gray-200">Follow</button>
+                                    </div>
+                                    <p class="text-sm text-gray-700 leading-relaxed mb-4">
+                                        Nội dung đã được mở rộng. Các ảnh khác sẽ tự động sắp xếp lại để nhường chỗ mà không bị che khuất.
+                                    </p>
+                                    <div class="mt-auto pt-2 border-t border-gray-100 flex gap-2">
+                                        <button onclick="openFullscreen('${itemData.url}')" class="flex-1 bg-gray-100 text-gray-800 py-2 rounded-full font-bold text-sm hover:bg-gray-200 flex items-center justify-center gap-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                                            Xem lớn hơn
+                                        </button>
+                                        <button class="flex-1 bg-gray-100 py-2 rounded-full font-bold text-sm hover:bg-gray-200">Ghé thăm</button>
+                                        <button class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full hover:bg-gray-200">
+                                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            el.innerHTML = innerHTML;
+
+            const img = el.querySelector('img.pin-image');
+            const onLoaded = () => {
+                if (!el.isImageLoaded) {
+                    el.isImageLoaded = true;
+                    if (onLoadCallback) onLoadCallback();
+                }
+            };
+            img.onload = onLoaded;
+            img.onerror = onLoaded;
+            if (img.complete) onLoaded();
+
+            return el;
+        }
+
+        // --- HELPER: TÍNH CHIỀU CAO HIỂN THỊ CỦA ITEM ---
+        function getItemDisplayHeight(data, width) {
+            if (data.isAd) {
+                const imgHeight = width * data.aspectRatio;
+                return imgHeight + 100; // + text
+            } else {
+                if (data.isExpanded) {
+                    const imgHeight = width * data.aspectRatio;
+                    return imgHeight + 250;
+                } else {
+                    return (width * data.aspectRatio); // Clean grid (no extra info)
+                }
+            }
+        }
+
+        // --- THUẬT TOÁN LAYOUT: SMART GAP FILLING ---
+        function calculateLayout() {
+            const containerWidth = container.clientWidth;
+
+            // 1. Tính toán cột
+            if (containerWidth < 640) state.columnCount = 2;
+            else if (containerWidth < 768) state.columnCount = 3;
+            else if (containerWidth < 1024) state.columnCount = 4;
+            else state.columnCount = 5;
+
+            const totalGapWidth = (state.columnCount - 1) * state.gap;
+            state.colWidth = (containerWidth - totalGapWidth) / state.columnCount;
+            const colHeights = new Array(state.columnCount).fill(0);
+
+            // Xóa Filler cũ
+            state.fillers.forEach(f => f.element.remove());
+            state.fillers = [];
+
+            // Copy mảng để xử lý
+            let pendingItems = [...state.items];
+
+            // --- SỬA ĐỔI: KHÔNG ĐẢO THỨ TỰ (REORDER) ---
+            // Ta xử lý tuần tự theo đúng index để giữ vị trí tự nhiên của ảnh
+            // Nếu ảnh nào expanded thì nó sẽ chiếm 2 cột tại thời điểm nó được xử lý.
+
+            // LOOP CHÍNH
+            let i = 0;
+            while (i < pendingItems.length) {
+                const itemObj = pendingItems[i];
+                const { data, element } = itemObj;
+
+                // Xác định span và width
+                let span = 1;
+                let width = state.colWidth;
+
+                // Item mở rộng hoặc Ad thì chiếm 2 cột
+                if ((data.isExpanded || data.isAd) && state.columnCount >= 2) {
+                    span = 2;
+                    width = (state.colWidth * 2) + state.gap;
+                }
+
+                // --- LOGIC ĐẶT ITEM VÀO LƯỚI ---
+                // Thay vì buộc về (0,0), ta dùng logic tìm vị trí tối ưu như bình thường
+
+                if (span === 2) {
+                    // Tìm cặp cột liền kề tốt nhất
+                    let bestColIndex = 0;
+                    let minY = Infinity;
+
+                    for (let c = 0; c <= state.columnCount - span; c++) {
+                        // Max height của cặp cột hiện tại
+                        const currentSpanMaxY = Math.max(colHeights[c], colHeights[c+1]);
+                        if (currentSpanMaxY < minY) {
+                            minY = currentSpanMaxY;
+                            bestColIndex = c;
+                        }
+                    }
+
+                    // --- GAP FILLING LOGIC (Giữ nguyên để lấp trống) ---
+                    const gap = Math.abs(colHeights[bestColIndex] - colHeights[bestColIndex+1]);
+
+                    if (gap > 50) {
+                        const lowerColIdx = colHeights[bestColIndex] < colHeights[bestColIndex+1] ? bestColIndex : bestColIndex+1;
+
+                        let fillerIdx = -1;
+                        for (let j = i + 1; j < pendingItems.length; j++) {
+                            const candidate = pendingItems[j];
+                            if (!candidate.data.isAd && !candidate.data.isExpanded) {
+                                fillerIdx = j;
+                                break;
+                            }
+                        }
+
+                        if (fillerIdx > -1) {
+                            const fillerItem = pendingItems[fillerIdx];
+                            const fillerH = getItemDisplayHeight(fillerItem.data, state.colWidth);
+                            placeItem(fillerItem, lowerColIdx, colHeights[lowerColIdx], state.colWidth, fillerH, 1, colHeights);
+                            pendingItems.splice(fillerIdx, 1);
+                            continue;
+                        }
+                    }
+
+                    const finalY = Math.max(colHeights[bestColIndex], colHeights[bestColIndex+1]);
+                    placeItem(itemObj, bestColIndex, finalY, width, getItemDisplayHeight(data, width), span, colHeights);
+                    i++;
+
+                } else {
+                    // Item 1 cột -> Xử lý bình thường
+                    let bestColIndex = 0;
+                    let minY = Math.min(...colHeights);
+                    bestColIndex = colHeights.indexOf(minY);
+
+                    const h = getItemDisplayHeight(data, width);
+                    placeItem(itemObj, bestColIndex, minY, width, h, 1, colHeights);
+                    i++;
+                }
+            }
+
+            container.style.height = `${Math.max(...colHeights)}px`;
+        }
+
+        // --- HELPER: ĐẶT ITEM VÀO VỊ TRÍ ---
+        function placeItem(itemObj, colIndex, y, width, height, span, colHeights) {
+            const x = colIndex * (state.colWidth + state.gap);
+            const { element, data } = itemObj;
+
+            element.style.width = `${width}px`;
+            element.style.height = `${height}px`;
+            element.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+
+            if (data.isExpanded) element.classList.add('expanded');
+            else element.classList.remove('expanded');
+
+            // Update chiều cao các cột bị chiếm
+            for (let k = 0; k < span; k++) {
+                if (colIndex + k < state.columnCount) {
+                    colHeights[colIndex + k] = y + height + state.gap;
+                }
+            }
+        }
+
+        // --- ACTIONS ---
+        function toggleExpand(itemData, element) {
+            const isExpanding = !itemData.isExpanded;
+
+            // Reset all (chỉ cho phép mở 1 cái 1 lúc để tránh rối)
+            state.items.forEach(i => i.data.isExpanded = false);
+
+            if (isExpanding) {
+                itemData.isExpanded = true;
+            }
+
+            // Tính toán lại layout
+            calculateLayout();
+
+            // Scroll nhẹ để focus vào ảnh nếu nó bị khuất
+            if (isExpanding && element) {
+                setTimeout(() => {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+                }, 300); // Đợi transition layout chạy 1 chút
+            }
+        }
+
+        function resetLayout() {
+            state.items.forEach(i => i.data.isExpanded = false);
+            calculateLayout();
+        }
+
+        function loadMore() {
+            if (state.isLoading || state.isFinished) return;
+
+            if (state.items.length >= MAX_ITEMS) {
+                state.isFinished = true;
+                statusText.innerText = "Đã tải hết ảnh.";
+                endMessage.classList.remove('hidden');
+                loader.classList.add('opacity-0');
+                calculateLayout();
+                return;
+            }
+
+            state.isLoading = true;
+            loader.classList.remove('opacity-0');
+            statusText.innerText = `Đang tải ${state.items.length} / ${MAX_ITEMS}...`;
+
+            setTimeout(() => {
+                const newItemsData = generateItems(15);
+                const newElements = [];
+
+                let revealIndex = 0;
+                let isQueueRunning = false;
+
+                const checkRevealQueue = () => {
+                    if (isQueueRunning) return;
+                    if (revealIndex >= newElements.length) {
+                        state.isLoading = false;
+                        loader.classList.add('opacity-0');
+                        if (state.items.length >= MAX_ITEMS) loadMore();
+                        return;
+                    }
+
+                    const currentEl = newElements[revealIndex];
+                    if (currentEl.isImageLoaded) {
+                        isQueueRunning = true;
+                        currentEl.classList.remove('is-loading');
+                        revealIndex++;
+                        setTimeout(() => {
+                            isQueueRunning = false;
+                            checkRevealQueue();
+                        }, 50); // Nhanh hơn chút để mượt
+                    }
+                };
+
+                newItemsData.forEach(data => {
+                    if (state.items.length >= MAX_ITEMS) return;
+                    const element = createItemDOM(data, checkRevealQueue);
+                    container.appendChild(element);
+                    state.items.push({ data, element });
+                    newElements.push(element);
+                });
+
+                calculateLayout();
+                checkRevealQueue();
+
+            }, 300);
+        }
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => calculateLayout(), 100);
+        });
+
+        window.addEventListener('scroll', () => {
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+                loadMore();
+            }
+        });
+
+        loadMore();
+
+    </script>
+</body>
+</html>

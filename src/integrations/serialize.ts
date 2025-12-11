@@ -26,14 +26,14 @@ export type SerializeResult = {
 };
 
 export async function serialize(
-    input: unknown,
-    context?: AppContext,
+	input: unknown,
+	context?: AppContext,
 ): Promise<readonly unknown[]> {
-    const serializer = new Serializer(context);
-    await serializer.serialize(input);
-    const data = serializer.referenceIds.toArray();
-    (data as any).unshift(Array.from(serializer.typeIndex));
-    return data;
+	const serializer = new Serializer(context);
+	await serializer.serialize(input);
+	const data = serializer.referenceIds.toArray();
+	(data as any).unshift(Array.from(serializer.typeIndex));
+	return data;
 }
 
 class Serializer {
@@ -41,7 +41,7 @@ class Serializer {
 	typeIndex = new Set<number>() //reference
 	/**
 	 * Đánh dấu kiểu của giá trị đã serialize \n default type = 0 (node)
-	 * @param v 
+	 * @param v
 	 * @param type 0: node | 1: reference | 2: tags
 	 */
 	// nodeIds = new UniqueList<unknown>();
@@ -64,10 +64,10 @@ class Serializer {
 			return this.serializeNode(v);
 		}
 		if (Array.isArray(v)) {
-			return mapPromise(v, (v) => this.serialize(v));
+			return mapPromiseAll(v, (v) => this.serialize(v));
 		}
 		return Object.fromEntries(
-			await mapPromise(Object.entries(v), async ([k, v]) => [
+			await mapPromiseAll(Object.entries(v), async ([k, v]) => [
 				k,
 				await this.serialize(v),
 			]),
@@ -75,11 +75,11 @@ class Serializer {
 	}
 
 	// https://github.com/vuejs/core/blob/461946175df95932986cbd7b07bb9598ab3318cd/packages/server-renderer/src/render.ts#L220
-	async serializeProps(node: VNode){
-			return await this.serialize({ ...(node.props ?? {}), key: node.key }).then((p) => Object.entries(p as Record<string, any>).filter(([k, v]) => v).map(([k, v]) => [this.referenceIds.add(k), v])).then(v => v.length ? v : 0)
+	async serializeProps(node: VNode) {
+		return await this.serialize({ ...(node.props ?? {}), key: node.key }).then((p) => Object.entries(p as Record<string, any>).filter(([k, v]) => v).map(([k, v]) => [this.referenceIds.add(k), v])).then(v => v.length ? v : 0)
 	}
 	async serializeNode(node: VNode) {
-		
+
 		if (typeof node.type === "symbol" || node.shapeFlag & ShapeFlags.ELEMENT) {
 			const sNode = SNodeObjtoSNode({
 				__snode: (node as any)?.staticCount || 1,
@@ -89,7 +89,7 @@ class Serializer {
 			} satisfies SNodeObj);
 			const nodeIdx = this.referenceIds.add(sNode);
 			sNode[3] = await this.serializeProps(node);
-			sNode[4] = await this.serialize(node.children)??0
+			sNode[4] = await this.serialize(node.children) ?? 0
 			return nodeIdx;
 		}
 		if (node.shapeFlag & ShapeFlags.COMPONENT) {
@@ -104,7 +104,7 @@ class Serializer {
 				} satisfies SNodeObj);
 				const nodeIdx = this.referenceIds.add(sNode);
 				sNode[3] = await this.serializeProps(node);
-				sNode[4] = await this.serializeClientChildren(node.children)??0;
+				sNode[4] = await this.serializeClientChildren(node.children) ?? 0;
 				this.typeIndex.add(sNode[1]);
 				// satisfies SNode;
 				return nodeIdx;
@@ -120,17 +120,17 @@ class Serializer {
 			setCurrentRenderingInstance(prev)
 			return await this.serialize(child);
 		}
-        if (node.shapeFlag & ShapeFlags.TELEPORT) {
-            throw new Error("Teleport vnode is only supported on client side");
-        }
-        if (node.shapeFlag & ShapeFlags.SUSPENSE) {
-            const Comp: VNode = await (node.children as any).default().at(-1);
-            Comp.shapeFlag = ShapeFlags.COMPONENT;
-            return await this.serialize(Comp);
-        }
+		if (node.shapeFlag & ShapeFlags.TELEPORT) {
+			throw new Error("Teleport vnode is only supported on client side");
+		}
+		if (node.shapeFlag & ShapeFlags.SUSPENSE) {
+			const Comp: VNode = await (node.children as any).default().at(-1);
+			Comp.shapeFlag = ShapeFlags.COMPONENT;
+			return await this.serialize(Comp);
+		}
 		console.error("[unexpected vnode]", [node.type, node.shapeFlag]);
 		throw new Error("unexpected vnode", { cause: node });
-		
+
 	}
 
 	async serializeClientChildren(children: VNodeNormalizedChildren) {
@@ -158,6 +158,12 @@ async function mapPromise<T, U>(
 		ys.push(await f(x));
 	}
 	return ys;
+}
+async function mapPromiseAll<T, U>(
+	xs: T[],
+	f: (x: T) => Promise<U>,
+): Promise<U[]> {
+	return Promise.all(xs.map(f));
 }
 
 type SNodeObj = {
@@ -244,134 +250,156 @@ class Deserializer {
 		));
 	}
 
-    deserializeNode(node: SNode) {
-        // console.log("node[4]", node[4])
-        const type = this.deserializeNodeType<any>(node[2]);
-        const oldchild = node[4];
-        node[4] = this.deserializeNodeType<any>(node[4]) ?? oldchild;
-        if (node[1] /* __reference_id */) {
-            const Component = tryCatchWrap(
-                () => this.referenceMap[node[1]],
-                (e) => {
-                    console.error("reference not found: " + node);
-                },
-            );
-            if (!Component) {
-                console.error(node);
-                throw new Error("reference not found: " + node[1], {
-                    cause: node,
-                });
-            }
-            return createVNode(
-                Component,
-                this.deserialize(
-                    this.buildProps(this.deserializeNodeType(node[3])),
-                ) as any,
-                this.deserializeClientChildren(node[4]),
-            );
-        }
-        if (type === Static && typeof node[4] === "string") {
-            return createStaticVNode(node[4], node[0]);
-        }
-        return createVNode(
-            type === 0 ? null : type,
-            this.deserialize(
-                this.buildProps(this.deserializeNodeType(node[3])),
-            ) as any,
-            this.deserialize(node[4]),
-        );
+	deserializeNode(node: SNode) {
+		// console.log("node[4]", node[4])
+		const type = this.deserializeNodeType<any>(node[2]);
+		const oldchild = node[4];
+		node[4] = this.deserializeNodeType<any>(node[4]) ?? oldchild;
+		if (node[1] /* __reference_id */) {
+			const Component = tryCatchWrap(
+				() => this.referenceMap[node[1]],
+				(e) => {
+					console.error("reference not found: " + node);
+				},
+			);
+			if (!Component) {
+				console.error(node);
+				throw new Error("reference not found: " + node[1], {
+					cause: node,
+				});
+			}
+			return createVNode(
+				Component,
+				this.deserialize(
+					this.buildProps(this.deserializeNodeType(node[3])),
+				) as any,
+				this.deserializeClientChildren(node[4]),
+			);
+		}
+		if (type === Static && typeof node[4] === "string") {
+			return createStaticVNode(node[4], node[0]);
+		}
+		return createVNode(
+			type === 0 ? null : type,
+			this.deserialize(
+				this.buildProps(this.deserializeNodeType(node[3])),
+			) as any,
+			this.deserialize(node[4]),
+		);
 	}
 	// nó là array key và value của VNodeNormalizedChildren => Array<[key, VNode]>
 	deserializeClientChildren(children: Array<[number, VNode]> | number) {
-        if (children === null || children === 0 || !children) {
-            return null;
-        }
-        tinyassert(
-            Array.isArray(children) &&
-                children.every(([k, v]) => typeof k === "string"),
-            "invalid client children " + JSON.stringify(children, null, 2),
-        );
-        const res = Object.fromEntries(
-            children.map(([k, v]) => [
-                this.deserializeNodeType(k),
-                () => this.deserialize(v),
-            ]),
-        );
-        return res;
-    }
+		if (children === null || children === 0 || !children) {
+			return null;
+		}
+		tinyassert(
+			Array.isArray(children) &&
+			children.every(([k, v]) => typeof k === "string"),
+			"invalid client children " + JSON.stringify(children, null, 2),
+		);
+		const res = Object.fromEntries(
+			children.map(([k, v]) => [
+				this.deserializeNodeType(k),
+				() => this.deserialize(v),
+			]),
+		);
+		return res;
+	}
 	deserializeNodeType1<T = unknown>(s: any): T {
-        if (s == 0) {
-            return "" as any;
-        }
-        if (typeof s === "string") return s as any;
-        if (Array.isArray(s)) {
-            return s.map((v: any) => this.deserializeNodeType(v)) as T;
-        }
-        s = this.appMap[s];
-        // if (!s) {
-        // 	throw new Error("tag not found: " + s);
-        // }
-        if (typeof s === "string" && s.startsWith("$")) {
-            return Symbol.for(s.slice(1)) as any;
-        }
-        return s;
-    }
-    deserializeNodeType<T = unknown>(rootS: any): T {
-        // Tạo một wrapper để giữ kết quả cuối cùng. 
-        // Chúng ta cần tham chiếu 'parent' để gán giá trị vào đúng vị trí.
-        const rootHolder: Record<string, any> = { result: null as any };
+		if (typeof s === "symbol") return s as any;
+		if (typeof s === "string") return s as any;
+		try {
 
-        // Stack lưu trữ trạng thái: 
-        // s: giá trị cần xử lý
-        // parent: mảng hoặc object chứa giá trị này
-        // key: vị trí (index hoặc key) trong parent để gán kết quả sau khi xử lý
-        const stack = [{ s: rootS, parent: rootHolder, key: 'result' }];
+			if (s == 0) {
+				return "" as any;
+			}
+		} catch (e) {
+			console.error("deserializeNodeType error", e, s);
+			throw e;
+		}
+		if (Array.isArray(s)) {
+			if (s.length === 5) {
+				return s as any;
+			}
+			return s.map((v: any) => this.deserializeNodeType(v)) as T;
+		}
+		s = this.appMap[s];
+		// if (!s) {
+		// 	throw new Error("tag not found: " + s);
+		// }
+		if (typeof s === "string" && s.startsWith("$")) {
+			return Symbol.for(s.slice(1)) as any;
+		}
+		return s;
+	}
+	deserializeNodeType<T = unknown>(rootS: any): T {
+		// Tạo một wrapper để giữ kết quả cuối cùng.
+		// Chúng ta cần tham chiếu 'parent' để gán giá trị vào đúng vị trí.
+		const rootHolder: Record<string, any> = { result: null as any };
 
-        while (stack.length > 0) {
-            const { s, parent, key } = stack.pop()!;
+		// Stack lưu trữ trạng thái:
+		// s: giá trị cần xử lý
+		// parent: mảng hoặc object chứa giá trị này
+		// key: vị trí (index hoặc key) trong parent để gán kết quả sau khi xử lý
+		const stack = [{ s: rootS, parent: rootHolder, key: 'result' }];
 
-            // 1. Xử lý trường hợp s == 0
-            if (s == 0) {
-                parent[key] = "" as any;
-                continue;
-            }
+		while (stack.length > 0) {
+			const { s, parent, key } = stack.pop()!;
 
-            // 2. Xử lý chuỗi (String)
-            if (typeof s === "string") {
-                parent[key] = s as any;
-                continue;
-            }
+			// 1. Xử lý trường hợp s == 0
+			try {
 
-            // 3. Xử lý Mảng (Array) - Đây là phần thay thế đệ quy
-            if (Array.isArray(s)) {
-                // Tạo một mảng mới để chứa kết quả đã deserialize
-                const newArr = new Array(s.length);
-                parent[key] = newArr;
+				if (s == 0) {
+					parent[key] = "" as any;
+					continue;
+				}
+			} catch (e) {
+				console.error({ s, parent, key });
+				// parent[key] = "" as any;
+				throw e;
+			}
 
-                // Đẩy các phần tử con vào stack để xử lý sau.
-                // Duyệt ngược (reverse) để khi pop ra khỏi stack, 
-                // chúng ta xử lý theo thứ tự từ 0 -> n (tuy không bắt buộc nhưng tốt cho debug).
-                for (let i = s.length - 1; i >= 0; i--) {
-                    stack.push({ s: s[i], parent: newArr, key: String(i) });
-                }
-                continue;
-            }
+			// 2. Xử lý chuỗi (String)
+			if (typeof s === "string") {
+				parent[key] = s as any;
+				continue;
+			}
 
-            // 4. Xử lý AppMap lookup (Logic gốc)
-            // Nếu không phải mảng, string, hay 0, thì tra cứu trong map
-            let mappedValue: string | symbol = this.appMap[s];
+			// 3. Xử lý Mảng (Array) - Đây là phần thay thế đệ quy
+			if (Array.isArray(s)) {
+				if (s.length === 5) {
+					// Nếu là SNode, xử lý như bình thường
+					parent[key] = this.deserializeNodeType1<T>(s);
+					continue;
+				}
+				// Tạo một mảng mới để chứa kết quả đã deserialize
+				const newArr = new Array(s.length);
+				parent[key] = newArr;
 
-            // Xử lý logic Symbol đặc biệt
-            if (typeof mappedValue === "string" && mappedValue.startsWith("$")) {
-                mappedValue = Symbol.for(mappedValue.slice(1));
-            }
+				// Đẩy các phần tử con vào stack để xử lý sau.
+				// Duyệt ngược (reverse) để khi pop ra khỏi stack,
+				// chúng ta xử lý theo thứ tự từ 0 -> n (tuy không bắt buộc nhưng tốt cho debug).
+				for (let i = s.length - 1; i >= 0; i--) {
+					stack.push({ s: s[i], parent: newArr, key: String(i) });
+				}
+				continue;
+			}
 
-            // Gán giá trị đã map vào parent
-            parent[key] = mappedValue;
-        }
+			// 4. Xử lý AppMap lookup (Logic gốc)
+			// Nếu không phải mảng, string, hay 0, thì tra cứu trong map
+			let mappedValue: string | symbol = this.appMap[s];
 
-        return rootHolder.result as T;
-    }
+			// Xử lý logic Symbol đặc biệt
+			if (typeof mappedValue === "string" && mappedValue.startsWith("$")) {
+				mappedValue = Symbol.for(mappedValue.slice(1));
+			}
+
+			// Gán giá trị đã map vào parent
+			parent[key] = mappedValue;
+		}
+
+		return rootHolder.result as T;
+	}
 	buildProps(props: [key: string, value: any][]): Record<string, any> {
 		try {
 			return Array.isArray(props) ? Object.fromEntries(props.map(([k, v]) => [this.deserializeNodeType(k), v])) : {};
