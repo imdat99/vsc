@@ -10,7 +10,7 @@ const fullscreenUrl = ref('')
 const showFullscreen = ref(false)
 
 const handleOpenFullscreen = (url: string) => {
-  fullscreenUrl.value = url
+  fullscreenUrl.value = url.replace('~tplv-photomode-zoomcover:480:480.jpeg','~tplv-tiktokx-origin.image')
   showFullscreen.value = true
 }
 

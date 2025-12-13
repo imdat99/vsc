@@ -1,7 +1,8 @@
 <!-- components/PinItem.vue -->
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { PinItem } from "../types"
+import { cn } from '@/lib/utils';
 
 interface Props {
   item: PinItem & { x?: number; y?: number; width?: number; height?: number }
@@ -9,18 +10,17 @@ interface Props {
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
-  toggleExpand: [id: number]
+  toggleExpand: [id: string]
   openFullscreen: [url: string]
 }>()
-
 const isImageLoaded = ref(false)
 
 const itemStyle = computed(() => ({
-  position: 'absolute',
+  position: 'absolute' as const,
   top: 0,
   left: 0,
   width: `${props.item.width || 236}px`,
-  height: `${props.item.height || 300}px`,
+  height: `${(props.item.height || 300)}px`,
   transform: `translate3d(${props.item.x || 0}px, ${props.item.y || 0}px, 0)`,
   transition: 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s ease',
   willChange: 'transform, width, height, opacity',
@@ -92,20 +92,28 @@ const handleOpenFullscreen = () => {
     </div>
 
     <!-- Normal Item Layout -->
-    <div v-else class="pin-card relative w-full h-full overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-md transition-all flex flex-col" :class="{ 'shadow-xl border border-black/5': item.isExpanded }">
-      <div class="relative w-full bg-gray-200 overflow-hidden flex-shrink-0">
-        <div :style="{ paddingBottom: `${item.aspectRatio * 100}%` }"></div>
+    <div v-else :class="cn('pin-card relative w-full h-full overflow-hidden rounded-2xl bg-white border-2 border-transparent transition-all flex flex-col', item.isExpanded && 'border-primary p-4')">
+      <div class="relative w-full bg-gray-200 overflow-hidden flex-shrink-0 rounded-xl">
+        <!-- <div :style="{ paddingBottom: `${item.aspectRatio * 100}%` }">{{ item.aspectRatio }}</div> -->
+         <div v-if="item.isExpanded" class="absolute top-2.5 right-2.5 bg-white/90 px-3 py-1 rounded-full text-sm font-bold text-gray-600 z-10 backdrop-blur shadow-md">
+           Đang mở rộng &nbsp; | &nbsp; Nhấn để
+          lưu
+         </div>  
         <img 
-          :src="item.url" 
-          class="absolute top-0 left-0 w-full h-full object-cover"
+          :src="item.isExpanded ? item.url.replace('480:480','1200:1200') : item.url" 
+          class="top-0 left-0 w-full h-auto rounded-xl object-cover"
           @load="handleImageLoad"
         >
-        <div class="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-3 flex flex-col justify-between">
+        <div class="absolute inset-0 opacity-0 rounded-xl group-hover:opacity-100 transition-opacity duration-200 p-3 flex flex-col justify-between">
           <div class="flex justify-end">
             <button class="bg-[#E60023] text-white px-4 py-2 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-md">
               Lưu
             </button>
           </div>
+          <button @click.stop="handleOpenFullscreen" class="bottom-4 group absolute mx-auto right-4 bg-white bg-opacity-50 p-2 rounded-xl font-bold text-sm cursor-pointer flex items-center gap-1 hover:scale-105 transition-transform">
+            <span class="hidden">Xem lớn hơn &nbsp;</span>  
+            <svg aria-label="Xem lớn hơn" class="aTSQd5 hL9n03 _ByyDT" height="24" role="img" viewBox="0 0 24 24" width="24"><path d="M23 1v9h-2V4.41l-6.3 6.3-1.4-1.42L19.58 3H14V1zM1 23v-9h2v5.59l6.3-6.3 1.4 1.42L4.42 21H10v2z"></path></svg>
+          </button>
         </div>
       </div>
 
@@ -130,6 +138,9 @@ const handleOpenFullscreen = () => {
               </button>
             </div>
             <p class="text-sm text-gray-700 leading-relaxed mb-4">
+              Nội dung đã được mở rộng. Các ảnh khác sẽ tự động sắp xếp lại để nhường chỗ mà không bị che khuất.
+              Nội dung đã được mở rộng. Các ảnh khác sẽ tự động sắp xếp lại để nhường chỗ mà không bị che khuất.
+              Nội dung đã được mở rộng. Các ảnh khác sẽ tự động sắp xếp lại để nhường chỗ mà không bị che khuất.
               Nội dung đã được mở rộng. Các ảnh khác sẽ tự động sắp xếp lại để nhường chỗ mà không bị che khuất.
             </p>
             <div class="mt-auto pt-2 border-t border-gray-100 flex gap-2">

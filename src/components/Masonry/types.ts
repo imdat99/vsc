@@ -1,6 +1,6 @@
 // types.ts
 export interface PinItem {
-  id: number;
+  id: string;
   url: string;
   title: string;
   author: string;
@@ -8,6 +8,10 @@ export interface PinItem {
   isExpanded: boolean;
   isAd: boolean;
   adDesc?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
 }
 
 export interface ItemWithElement {

@@ -2,6 +2,8 @@
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import PinItem from './PinItem.vue'
 import type { PinItem as PinItemType } from '../types'
+import { debounce } from '@hiogawa/utils';
+import { getImageAspectRatio } from '@/lib/utils';
 
 const emit = defineEmits<{
   openFullscreen: [url: string]
@@ -9,7 +11,7 @@ const emit = defineEmits<{
 }>()
 
 // --- Config ---
-const MAX_ITEMS = 500 // Tăng giới hạn lên để thấy rõ hiệu quả của Virtual Scroll
+const MAX_ITEMS = 134 // Tăng giới hạn lên để thấy rõ hiệu quả của Virtual Scroll
 const BUFFER_PX = 800 // Khoảng đệm render trước/sau viewport (pixel)
 
 const container = ref<HTMLElement>()
@@ -34,7 +36,7 @@ let resizeTimer: number
 let scrollRAF: number | null = null
 
 // --- Data Generation ---
-const generateItems = (count: number): PinItemType[] => {
+const generateItems = (count: number): Promise<PinItemType[]> => {
   const newItems: PinItemType[] = []
   const aspectRatios = [0.7, 1.0, 1.2, 1.5, 0.8]
 
@@ -68,7 +70,23 @@ const generateItems = (count: number): PinItemType[] => {
       })
     }
   }
-  return newItems
+  return Promise.resolve(newItems)
+  // return fetch("https://inv.pipic.fun/image-list").then(r => r.json()).then((data) => {
+  //   return Promise.all(data.map(async (item: any) => {
+  //     const aspectRatio = await getImageAspectRatio(item.url)
+  //     return {
+  //     id: item.id,
+  //     url: item.url,
+  //     width: 400,
+  //     title: item.title,
+  //     author: item.user.name,
+  //     isExpanded: false,
+  //     isAd: false,
+  //     // width: 400,
+  //     // height: aspectRatio.float * 400,
+  //     aspectRatio: 1/aspectRatio.float
+  //   }}))
+  // })
 }
 
 const getItemDisplayHeight = (item: PinItemType, width: number): number => {
@@ -76,7 +94,7 @@ const getItemDisplayHeight = (item: PinItemType, width: number): number => {
     return width * item.aspectRatio + 100
   } else {
     if (item.isExpanded) {
-      return Math.min(width * item.aspectRatio + 250, window.innerHeight * 0.8)
+      return width * item.aspectRatio + 250
     } else {
       return width * item.aspectRatio
     }
@@ -250,7 +268,7 @@ const visibleItems = computed(() => {
   })
 })
 
-const toggleExpand = (itemId: number) => {
+const toggleExpand = (itemId: string) => {
   const item = items.value.find(i => i.id === itemId)
   if (!item || item.isAd) return
 
@@ -291,22 +309,31 @@ const loadMore = () => {
 
   isLoading.value = true
   emit('updateStatus', `Đang tải ${items.value.length} / ${MAX_ITEMS}...`)
-
-  // Giả lập network delay
-  setTimeout(() => {
-    const newItems = generateItems(20)
+  generateItems(20).then(newItems => {
+    console.log("Loaded items:", newItems)
     items.value.push(...newItems)
 
     nextTick(() => {
       calculateLayout()
       isLoading.value = false
-
-      // Nếu màn hình quá lớn mà chưa có scrollbar, load tiếp
-      if (state.value.containerHeight < window.innerHeight && items.value.length < MAX_ITEMS) {
-        loadMore()
-      }
+      emit('updateStatus', `Đã tải ${items.value.length} / ${MAX_ITEMS}.`)
     })
-  }, 300)
+  })
+  // Giả lập network delay
+  // setTimeout(() => {
+  //   const newItems = generateItems(20)
+  //   items.value.push(...newItems)
+
+  //   nextTick(() => {
+  //     calculateLayout()
+  //     isLoading.value = false
+
+  //     // Nếu màn hình quá lớn mà chưa có scrollbar, load tiếp
+  //     if (state.value.containerHeight < window.innerHeight && items.value.length < MAX_ITEMS) {
+  //       loadMore()
+  //     }
+  //   })
+  // }, 300)
 }
 
 const updateScrollState = () => {
@@ -325,13 +352,10 @@ const handleScroll = () => {
   scrollRAF = requestAnimationFrame(updateScrollState)
 }
 
-const handleResize = () => {
+const handleResize = debounce(() => {
   windowHeight.value = window.innerHeight
-  clearTimeout(resizeTimer)
-  resizeTimer = window.setTimeout(() => {
-    calculateLayout()
-  }, 100)
-}
+  calculateLayout()
+}, 200)
 
 onMounted(() => {
   updateScrollState()
