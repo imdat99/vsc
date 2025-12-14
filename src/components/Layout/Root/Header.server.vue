@@ -1,5 +1,5 @@
 <template>
-	<header class="sticky w-full top-0 left-0 right-0 z-50">
+	<header class="fixed w-full top-0 left-0 right-0 z-50">
 		<div class="w-full mx-auto px-4">
 			<div class="flex w-full h-16 items-center">
 				<div class="flex items-center w-60">
@@ -24,12 +24,6 @@
 				</div>
 
 				<div class="flex items-center space-x-4">
-					<div>
-						<button
-							class="flex items-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-							number {{ num }}
-						</button>
-					</div>
 					<div class="relative">
 						<button
 							class="flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
@@ -43,5 +37,4 @@
 	</header>
 </template>
 <script lang="ts" setup>
-defineProps<{ num: Number }>()
 </script>

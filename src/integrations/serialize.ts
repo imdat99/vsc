@@ -58,7 +58,12 @@ class Serializer {
 			typeof v === "boolean" ||
 			typeof v === "number"
 		) {
-			return v;
+            switch (typeof v) {
+                case "number": return String(v);
+                case "boolean": return v ? !0 : !1;
+                default: return v;
+            }
+			// return typeof v === "number" ? String(v) : v;
 		}
 		if (isVNode(v)) {
 			return this.serializeNode(v);
@@ -181,13 +186,14 @@ type SNode = [
 	children: any // 4
 ];
 function SNodeObjtoSNode(o: SNodeObj): SNode {
-	return [
+	const res = [
 		Number(o.__snode),
 		o.__reference_id,
 		o.type,
 		o.props,
 		o.children,
 	].map(v => v ?? 0) as SNode;
+	return res;
 }
 function serializeNodeType(s: any): string {
 	if (typeof s === "symbol") {

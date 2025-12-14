@@ -32,10 +32,10 @@ const updateStatus = (text: string) => {
 
 <template>
   <div class="bg-white text-[#111111] antialiased min-h-screen">
-    <AppHeader 
+    <!-- <AppHeader 
       :status-text="statusText"
       @reset="handleReset"
-    />
+    /> -->
 
     <main class="w-full px-2 pb-20">
       <MasonryGallery 

@@ -11,7 +11,7 @@ const emit = defineEmits<{
 }>()
 
 // --- Config ---
-const MAX_ITEMS = 134 // Tăng giới hạn lên để thấy rõ hiệu quả của Virtual Scroll
+const MAX_ITEMS = 116 // Tăng giới hạn lên để thấy rõ hiệu quả của Virtual Scroll
 const BUFFER_PX = 800 // Khoảng đệm render trước/sau viewport (pixel)
 
 const container = ref<HTMLElement>()
@@ -39,54 +39,53 @@ let scrollRAF: number | null = null
 const generateItems = (count: number): Promise<PinItemType[]> => {
   const newItems: PinItemType[] = []
   const aspectRatios = [0.7, 1.0, 1.2, 1.5, 0.8]
+  // for (let i = 0; i < count; i++) {
+  //   globalId++
+  //   const isAd = globalId % 10 === 0 // Giảm tần suất ad một chút
 
-  for (let i = 0; i < count; i++) {
-    globalId++
-    const isAd = globalId % 10 === 0 // Giảm tần suất ad một chút
-
-    if (isAd) {
-      newItems.push({
-        id: globalId,
-        url: `https://picsum.photos/800/600?random=${globalId}`,
-        title: `Quảng cáo Tài trợ #${globalId}`,
-        author: 'Brand Name',
-        aspectRatio: 0.75,
-        isExpanded: false,
-        isAd: true,
-        adDesc: 'Sản phẩm tốt nhất cho ngôi nhà của bạn. Mua ngay hôm nay để nhận ưu đãi.'
-      })
-    } else {
-      const ratio = aspectRatios[Math.floor(Math.random() * aspectRatios.length)]
-      const reqW = 400
-      const reqH = Math.round(reqW * ratio)
-      newItems.push({
-        id: globalId,
-        url: `https://picsum.photos/${reqW}/${reqH}?random=${globalId}`,
-        title: `Pin ${globalId}`,
-        author: `Creator ${globalId}`,
-        aspectRatio: ratio,
-        isExpanded: false,
-        isAd: false
-      })
-    }
-  }
-  return Promise.resolve(newItems)
-  // return fetch("https://inv.pipic.fun/image-list").then(r => r.json()).then((data) => {
-  //   return Promise.all(data.map(async (item: any) => {
-  //     const aspectRatio = await getImageAspectRatio(item.url)
-  //     return {
-  //     id: item.id,
-  //     url: item.url,
-  //     width: 400,
-  //     title: item.title,
-  //     author: item.user.name,
-  //     isExpanded: false,
-  //     isAd: false,
-  //     // width: 400,
-  //     // height: aspectRatio.float * 400,
-  //     aspectRatio: 1/aspectRatio.float
-  //   }}))
-  // })
+  //   if (isAd) {
+  //     newItems.push({
+  //       id: globalId,
+  //       url: `https://picsum.photos/800/600?random=${globalId}`,
+  //       title: `Quảng cáo Tài trợ #${globalId}`,
+  //       author: 'Brand Name',
+  //       aspectRatio: 0.75,
+  //       isExpanded: false,
+  //       isAd: true,
+  //       adDesc: 'Sản phẩm tốt nhất cho ngôi nhà của bạn. Mua ngay hôm nay để nhận ưu đãi.'
+  //     })
+  //   } else {
+  //     const ratio = aspectRatios[Math.floor(Math.random() * aspectRatios.length)]
+  //     const reqW = 400
+  //     const reqH = Math.round(reqW * ratio)
+  //     newItems.push({
+  //       id: globalId,
+  //       url: `https://picsum.photos/${reqW}/${reqH}?random=${globalId}`,
+  //       title: `Pin ${globalId}`,
+  //       author: `Creator ${globalId}`,
+  //       aspectRatio: ratio,
+  //       isExpanded: false,
+  //       isAd: false
+  //     })
+  //   }
+  // }
+  // return Promise.resolve(newItems)
+  return fetch("https://inv.pipic.fun/image-list").then(r => r.json()).then((data) => {
+    return Promise.all(data.map(async (item: any) => {
+      const aspectRatio = await getImageAspectRatio(item.url)
+      return {
+      id: item.id,
+      url: item.url,
+      width: 400,
+      title: item.title,
+      author: item.user.name,
+      isExpanded: false,
+      isAd: false,
+      // width: 400,
+      // height: aspectRatio.float * 400,
+      aspectRatio: 1/aspectRatio.float
+    }}))
+  }).then(res => res.filter((v, i, arr) => arr.findIndex(t => (t.id === v.id)) === i))
 }
 
 const getItemDisplayHeight = (item: PinItemType, width: number): number => {
@@ -376,16 +375,11 @@ const handleOpenFullscreen = (url: string) => {
 </script>
 
 <template>
-  <!-- 
-    Quan trọng: Container phải giữ nguyên chiều cao thật (state.containerHeight)
-    để thanh cuộn của trình duyệt hoạt động đúng, dù các item bên trong bị ẩn đi.
-  -->
   <div
     ref="container"
     class="relative w-full mx-auto transition-all duration-500"
     :style="{ height: `${state.containerHeight}px` }"
   >
-    <!-- Render visibleItems thay vì toàn bộ items -->
     <PinItem
       v-for="item in visibleItems"
       :key="item.id"

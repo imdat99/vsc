@@ -88,8 +88,11 @@ export default defineConfig({
 			"2xl": "1rem", // 16px
 			"3xl": "1.5rem", // 24px
 			full: "9999px",
-		},
+		}
 	},
+    shortcuts: {
+        "press-animated": "transition-all duration-200 ease-[cubic-bezier(.22,1,.36,1)] active:translate-y-0 active:scale-90 active:shadow-md"
+    },
 	transformers: [
 		transformerVariantGroup(),
 		transformerCompileClass(),
@@ -106,9 +109,9 @@ export default defineConfig({
         outline-color: ${context.theme.colors?.primary?.active};
         outline-width: 1px
       }
-      
+
 
       `}
 		}
-	]
+	],
 });

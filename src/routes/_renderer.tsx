@@ -6,7 +6,8 @@ import { bootstrapModules } from "virtual:ssr-assets";
 import { Component, createSSRApp, ssrContextKey } from 'vue';
 import { Fragment } from 'vue/jsx-runtime';
 import { renderToWebStream } from "vue/server-renderer";
-import LayoutRoot from '@/components/Layout/Root';
+import RootLayout from '@/components/Layout/Root/RootLayout.vue';
+import { requestCtxKey } from '@/lib/constants';
 
 type PropsForRenderer = {
 	Layout: VueComponent;
@@ -29,7 +30,7 @@ const createRenderer =
 			const isVsc = c.req.header("x-vsc") === "true"
 			const serverApp = createSSRApp(isVsc ? () => null : node);
 			serverApp.use(head);
-			serverApp.provide(Symbol("RequestContext"), c);
+			serverApp.provide(requestCtxKey, c);
 			if (isVsc) {
 				serverApp.provide(ssrContextKey, { modules: new Set() });
 				c.header("Content-Type", "application/json; charset=UTF-8");
@@ -61,7 +62,7 @@ const createRenderer =
 						controller.enqueue('<link rel="icon" href="/favicon.ico" />')
 						controller.enqueue(`<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"rel="stylesheet"></link>`);
 						controller.enqueue(buildBootstrapScript());
-						controller.enqueue('</head><body class="bg-[#f9fafd] text-gray-900 font-sans antialiased overflow-x-hidden">')
+						controller.enqueue('</head><body class=":uno: bg-primary/5 text-gray-900 font-sans antialiased overflow-x-hidden min-h-svh flex flex-col">')
 						try {
 							while (true) {
 								const isDone = await reader.read().then(({ done, value }) => {
@@ -106,7 +107,7 @@ const vueRenderer = (
 	}
 export default vueRenderer(({ Children }, c) => {
 	// console.log("children", children)
-	return <Children />;
+	return 	<RootLayout><Children /></RootLayout>;
 }, { stream: true })
 
 /**
