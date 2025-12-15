@@ -34,11 +34,9 @@ export const Link = defineComponent<{
 }>(
 	(props, { slots }) => {
 		const currentPath = useLocation();
-		console.log("currentPath", currentPath, ("/" +props.href + "/").replace(/\/+/g, "/"));
 		const isExactActive = computed(
 			() => currentPath.value === props.href
 		);
-
 		const isActive = computed(
 			() =>
 				currentPath.value === props.href ||
@@ -66,7 +64,10 @@ export const Link = defineComponent<{
 
 		return () => (
 			<a href={props.href} class={className.value} onClick={navigate}>
-				{slots.default?.()}
+				{/*slots.default?.()*/}
+				{
+					isActive.value ? (slots.active ? slots.active() : isExactActive.value ? slots.exact ? slots.exact() : slots.default?.() : slots.default?.()) : slots.default?.()
+				}
 			</a>
 		);
 	},

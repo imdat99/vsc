@@ -6,10 +6,15 @@ import { cors } from "hono/cors";
 import { showRoutes } from "hono/dev";
 import { contextStorage } from 'hono/context-storage';
 import { jwtRpc, rpcServer } from './api/rpc';
+import isMobile from 'is-mobile';
 const app = new Hono<any>();
 app.use(cors(), async (c, next) => {
   c.set("fetch", app.request.bind(app));
-  // c.set("acmCampaignClient", acmCampaignClient);
+  const ua = c.req.header("User-Agent")
+  if (!ua) {
+	return c.json({ error: "User-Agent header is missing" }, 400);
+  };
+   c.set("isMobile", isMobile({ ua }));
   await next();
 }, contextStorage(), rpcServer);
 app.use(serveStatic({ root: "./public" }));
