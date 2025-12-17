@@ -13,6 +13,8 @@ import { createReferenceMap } from "./integrations/client-reference/runtime";
 import { listenBrowserHistory } from "./integrations/router/browser";
 import "uno.css";
 import { withErrorBoundary } from "./lib/hoc/withErrorBoundary";
+import { useRequestContext } from "./lib/hooks/useRequestContext";
+import { isRouteLoading, routerKey } from "./lib/constants";
 
 // import { ssrRegisterHelper } from "/__vue-jsx-ssr-register-helper"
 async function callServer() {
@@ -37,10 +39,10 @@ async function main() {
 		name: "Root",
 		setup() {
 			const render = shallowRef(initRender);
-			const currentUrl = ref(window.location.href);
+			const currentUrl = ref(new URL(window.location.href).pathname);
 			const isLoading = shallowRef(false);
-			provide("isLoading", readonly(isLoading));
-
+			provide(isRouteLoading, readonly(isLoading));
+			provide(routerKey, readonly(currentUrl));
 			const navManager = new AsyncTaskManager<() => void>({
 				onSucess: (result) => {
 					render.value = result;
@@ -52,8 +54,10 @@ async function main() {
 					return;
 				}
 				isLoading.value = true;
-				currentUrl.value = url?.toString() || "";
-				navManager.push(callServer);
+				if (url){
+					currentUrl.value = url?.toString() || "";
+					navManager.push(callServer);
+				}
 			});
 
 			return () => render.value() as any;
@@ -64,7 +68,6 @@ async function main() {
 
 	// const el = document.getElementById("root");
 	// tinyassert(el);
-
 	listenHydrationMismatch(() => {
 		document.title = "🚨 HYDRATE ERROR";
 	});

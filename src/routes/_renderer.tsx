@@ -3,11 +3,11 @@ import { serialize } from '@/integrations/serialize';
 import { createHead, renderSSRHead } from "@unhead/vue/server";
 import { PropsWithChildren } from 'hono/jsx';
 import { bootstrapModules } from "virtual:ssr-assets";
-import { Component, createSSRApp, ssrContextKey } from 'vue';
+import { Component, createSSRApp, readonly, ref, ssrContextKey } from 'vue';
 import { Fragment } from 'vue/jsx-runtime';
 import { renderToWebStream } from "vue/server-renderer";
 import RootLayout from '@/components/Layout/Root/RootLayout.vue';
-import { requestCtxKey } from '@/lib/constants';
+import { isRouteLoading, requestCtxKey, routerKey } from '@/lib/constants';
 
 type PropsForRenderer = {
 	Layout: VueComponent;
@@ -31,6 +31,8 @@ const createRenderer =
 			const serverApp = createSSRApp(isVsc ? () => null : node);
 			serverApp.use(head);
 			serverApp.provide(requestCtxKey, c);
+			serverApp.provide(isRouteLoading, readonly(ref(false)));
+			serverApp.provide(routerKey, readonly(ref(url.pathname)));
 			if (isVsc) {
 				serverApp.provide(ssrContextKey, { modules: new Set() });
 				c.header("Content-Type", "application/json; charset=UTF-8");
@@ -62,7 +64,7 @@ const createRenderer =
 						controller.enqueue('<link rel="icon" href="/favicon.ico" />')
 						controller.enqueue(`<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"rel="stylesheet"></link>`);
 						controller.enqueue(buildBootstrapScript());
-						controller.enqueue('</head><body class=":uno: bg-primary/5 text-gray-900 font-sans antialiased overflow-x-hidden min-h-svh flex flex-col">')
+						controller.enqueue('</head><body class=":uno: bg-info/5 text-gray-900 font-sans antialiased overflow-x-hidden min-h-svh flex flex-col">')
 						try {
 							while (true) {
 								const isDone = await reader.read().then(({ done, value }) => {

@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && vite build --ssr && bun build dist/server/index.js --target bun --outdir dist",
+    "build": "vite build && bun build dist/server/index.js --target bun --outdir dist",
     "preview": "vite preview",
     "deploy": "$npm_execpath run build && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings"

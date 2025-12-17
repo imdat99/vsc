@@ -1,29 +1,11 @@
 "use client";
 
-import { useRequestContext } from "@/lib/hooks/useRequestContext";
+import { routerKey } from "@/lib/constants";
 import { tinyassert } from "@hiogawa/utils";
-import { defineComponent, ref, onMounted, onUnmounted, computed } from "vue";
+import { computed, defineComponent, inject, Ref, watch } from "vue";
 
 function useLocation() {
-    if (typeof window === "undefined") {
-		const ctx = useRequestContext();
-		return ref(ctx ? new URL(ctx.req.url).pathname : "/");
-    }
-	const path = ref(window.location.pathname);
-
-	const update = () => {
-		path.value = window.location.pathname;
-	};
-
-	onMounted(() => {
-		window.addEventListener("popstate", update);
-	});
-
-	onUnmounted(() => {
-		window.removeEventListener("popstate", update);
-	});
-
-	return path;
+	return inject<Readonly<Ref<string, string>>>(routerKey)!;
 }
 
 export const Link = defineComponent<{
@@ -33,14 +15,14 @@ export const Link = defineComponent<{
 	class?: string;
 }>(
 	(props, { slots }) => {
-		const currentPath = useLocation();
+		const currentPath = useLocation()
 		const isExactActive = computed(
 			() => currentPath.value === props.href
 		);
 		const isActive = computed(
 			() =>
 				currentPath.value === props.href ||
-				currentPath.value.startsWith(("/" +props.href + "/").replace(/\/+/g, "/"))
+				currentPath.value.startsWith(("/" + props.href + "/").replace(/\/+/g, "/"))
 		);
 
 		const className = computed(() => ({
@@ -61,13 +43,15 @@ export const Link = defineComponent<{
 				window.dispatchEvent(new PopStateEvent("popstate"));
 			}
 		};
-
+		const resolveSlot = () => {
+			if (!isActive.value) return slots.default?.()
+			if (slots.active) return slots.active()
+			if (isExactActive.value && slots.exact) return slots.exact()
+			return slots.default?.()
+		}
 		return () => (
 			<a href={props.href} class={className.value} onClick={navigate}>
-				{/*slots.default?.()*/}
-				{
-					isActive.value ? (slots.active ? slots.active() : isExactActive.value ? slots.exact ? slots.exact() : slots.default?.() : slots.default?.()) : slots.default?.()
-				}
+				{resolveSlot()}
 			</a>
 		);
 	},

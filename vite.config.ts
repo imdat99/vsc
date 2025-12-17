@@ -101,13 +101,13 @@ export default defineConfig((env) => ({
       await builder.build(builder.environments.ssr); // post-build for emit client references
     },
   },
-  // build: {
-  //   manifest: true,
-  //   outDir: env.isSsrBuild ? "dist/server" : "dist/public",
-  //   minify: false,
-  //   emptyOutDir: true,
-  //   // ssr: env.isSsrBuild
-  // },
+  build: {
+    manifest: true,
+    // outDir: env.isSsrBuild ? "dist/server" : "dist/public",
+    minify: false,
+    emptyOutDir: true,
+    // ssr: env.isSsrBuild
+  },
   //   builder: {
   //     sharedPlugins: true,
   //   }
