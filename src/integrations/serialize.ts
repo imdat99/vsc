@@ -274,11 +274,12 @@ class Deserializer {
 					cause: node,
 				});
 			}
+			const props = this.deserialize(
+					this.buildProps(this.deserializeNodeType(node[3])),
+				) as any
 			return createVNode(
 				Component,
-				this.deserialize(
-					this.buildProps(this.deserializeNodeType(node[3])),
-				) as any,
+				props,
 				this.deserializeClientChildren(node[4]),
 			);
 		}
@@ -370,7 +371,23 @@ class Deserializer {
 				parent[key] = s as any;
 				continue;
 			}
+			if (typeof s === "object" && !Array.isArray(s)) {
+				// 2.a Xử lý Object
+				// dùng Object trực tiếp để tránh đệ quy
+				// const newObj: Record<string, any> = {};
+				// parent[key] = newObj;
 
+				// // Đẩy các cặp key-value vào stack để xử lý sau.
+				// // Duyệt ngược (reverse) để khi pop ra khỏi stack,
+				// // chúng ta xử lý theo thứ tự từ đầu đến cuối (tuy không bắt buộc nhưng tốt cho debug).
+				// const entries = Object.entries(s);
+				// for (let i = entries.length - 1; i >= 0; i--) {
+				// 	const [k, v] = entries[i];
+				// 	stack.push({ s: v, parent: newObj, key: k });
+				// }
+				parent[key] = s;
+				continue;
+			}
 			// 3. Xử lý Mảng (Array) - Đây là phần thay thế đệ quy
 			if (Array.isArray(s)) {
 				if (s.length === 5) {

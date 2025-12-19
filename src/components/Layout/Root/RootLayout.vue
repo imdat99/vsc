@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { Link } from "@/integrations/router/client";
-import { Bell, BellFilled, Search } from "@/components/icons";
+import { Search } from "@/components/icons";
 import Home from "@/components/icons/Home.vue";
 import HomeFilled from "@/components/icons/HomeFilled.vue";
 import Layout from "@/components/icons/Layout.vue";
@@ -8,6 +8,8 @@ import LayoutFilled from "@/components/icons/LayoutFilled.vue";
 import { createStaticVNode } from "vue";
 import Add from "@/components/icons/Add.vue";
 import AddFilled from "@/components/icons/AddFilled.vue";
+import Bell from "@/components/icons/Bell.vue";
+import BellFilled from "@/components/icons/BellFilled.vue";
 
 const className = ":uno: w-12 h-12 p-2 rounded-2xl hover:bg-primary/10 flex press-animated"
 const homeHoist = createStaticVNode(`<img class="h-8 w-8" src="/apple-touch-icon.png" alt="Logo" />`, 1);

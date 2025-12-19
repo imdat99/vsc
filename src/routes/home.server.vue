@@ -1,7 +1,8 @@
 <template>
-	<App />
+	<Counter />
+	<vue-head :input="{ title: 'PicPic - App chia sẻ hình ảnh miễn phí' }" />
 </template>
 <script lang="ts" setup>
-import App from '@/components/Masonry/App.vue';
-import RootLayout from '@/components/Layout/Root/RootLayout.vue';
+import { VueHead } from '@/components/Layout/Head';
+import Counter from './sfc/counter.vue';
 </script>

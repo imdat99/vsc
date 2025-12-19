@@ -1,7 +1,10 @@
 <template>
-    <svg aria-hidden="true" aria-label="" class="v-mid m-a" height="24" role="img" viewBox="0 0 24 24" width="24">
-            <path
-                d="M1 5a4 4 0 0 1 4-4h14a4 4 0 0 1 4 4v14a4 4 0 0 1-4 4H5a4 4 0 0 1-4-4zm10 6H6v2h5v5h2v-5h5v-2h-5V6h-2z">
-            </path>
-        </svg>
-    </template>
+    <svg aria-hidden="true" aria-label="" class="v-mid m-a" height="24" role="img" viewBox="0 0 468 468" width="24">
+        <path
+            d="M42 74v320c0 18 14 32 32 32h320c18 0 32-14 32-32V74c0-18-14-32-32-32H74c-18 0-32 14-32 32zm80 160c0-9 7-16 16-16h80v-80c0-9 7-16 16-16s16 7 16 16v80h80c9 0 16 7 16 16s-7 16-16 16h-80v80c0 9-7 16-16 16s-16-7-16-16v-80h-80c-9 0-16-7-16-16z"
+            fill="#a6acb9" />
+        <path
+            d="M74 42c-18 0-32 14-32 32v320c0 18 14 32 32 32h320c18 0 32-14 32-32V74c0-18-14-32-32-32H74zM10 74c0-35 29-64 64-64h320c35 0 64 29 64 64v320c0 35-29 64-64 64H74c-35 0-64-29-64-64V74zm208 256v-80h-80c-9 0-16-7-16-16s7-16 16-16h80v-80c0-9 7-16 16-16s16 7 16 16v80h80c9 0 16 7 16 16s-7 16-16 16h-80v80c0 9-7 16-16 16s-16-7-16-16z"
+            fill="#1e3050" />
+    </svg>
+</template>

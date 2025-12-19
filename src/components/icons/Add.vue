@@ -1,7 +1,7 @@
 <template>
-    <svg aria-hidden="true" aria-label="" class="v-mid m-a" height="24" role="img" viewBox="0 0 24 24" width="24">
-            <path
-                d="M11 11H6v2h5v5h2v-5h5v-2h-5V6h-2zM5 1a4 4 0 0 0-4 4v14a4 4 0 0 0 4 4h14a4 4 0 0 0 4-4V5a4 4 0 0 0-4-4zm16 4v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h14a2 2 0 0 1 2 2">
-            </path>
-        </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" class="v-mid m-a" height="24" viewBox="-10 -226 468 468">
+        <path
+            d="M64-184c-18 0-32 14-32 32v320c0 18 14 32 32 32h320c18 0 32-14 32-32v-320c0-18-14-32-32-32H64zM0-152c0-35 29-64 64-64h320c35 0 64 29 64 64v320c0 35-29 64-64 64H64c-35 0-64-29-64-64v-320zm208 256V24h-80c-9 0-16-7-16-16s7-16 16-16h80v-80c0-9 7-16 16-16s16 7 16 16v80h80c9 0 16 7 16 16s-7 16-16 16h-80v80c0 9-7 16-16 16s-16-7-16-16z"
+            fill="#1e3050" />
+    </svg>
 </template>

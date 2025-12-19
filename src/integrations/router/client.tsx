@@ -40,7 +40,8 @@ export const Link = defineComponent<{
 			) {
 				e.preventDefault();
 				history.pushState(null, "", props.href);
-				window.dispatchEvent(new PopStateEvent("popstate"));
+				// history.pushState(null, "", e.currentTarget.href);
+				// window.dispatchEvent(new PopStateEvent("popstate"));
 			}
 		};
 		const resolveSlot = () => {

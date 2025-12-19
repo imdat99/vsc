@@ -1,36 +1,33 @@
-import { tinyassert } from "@hiogawa/utils";
+import { createHead } from "@unhead/vue/client";
 import {
 	createSSRApp,
 	defineComponent,
 	provide,
 	readonly,
 	ref,
-	shallowRef,
-	watch,
+	shallowRef
 } from "vue";
-import { type SerializeResult, deserialize } from "./integrations/serialize";
 import { createReferenceMap } from "./integrations/client-reference/runtime";
 import { listenBrowserHistory } from "./integrations/router/browser";
-import "uno.css";
-import { withErrorBoundary } from "./lib/hoc/withErrorBoundary";
-import { useRequestContext } from "./lib/hooks/useRequestContext";
+import { deserialize } from "./integrations/serialize";
 import { isRouteLoading, routerKey } from "./lib/constants";
+import { withErrorBoundary } from "./lib/hoc/withErrorBoundary";
+import "uno.css";
 
 // import { ssrRegisterHelper } from "/__vue-jsx-ssr-register-helper"
 async function callServer() {
-	const request = new Request(window.location.href, { method: "GET" });
-	request.headers.set("x-vsc", "true");
+	const request = new Request(window.location.href, { method: "GET", headers: { "x-vsc": "true" } });
+
 	const res = await fetch(request);
-	// tinyassert(res.ok);
 	const result = await res.json()
 	const referenceMap = await createReferenceMap(result[0].map((i: number) => [i, result[i]]));
-	return () => deserialize(result, referenceMap);
-}
+	return () => deserialize(result, referenceMap)
+};
 async function main() {
 	if (window.location.search.includes("__nojs")) {
 		return;
 	}
-
+	const head = createHead();
 	// let initResult = (globalThis as any).__serialized;
 	// const initReferenceMap = await createReferenceMap(initResult[1]);
 	// const initRender = () => deserialize(initResult[0], initReferenceMap);
@@ -49,23 +46,18 @@ async function main() {
 					isLoading.value = false;
 				},
 			});
-			listenBrowserHistory((_d, url) => {
-				if (url === currentUrl.value) {
-					return;
-				}
+			listenBrowserHistory(() => {
 				isLoading.value = true;
-				if (url){
-					currentUrl.value = url?.toString() || "";
-					navManager.push(callServer);
-				}
+				currentUrl.value = new URL(window.location.href).pathname;
+				navManager.push(callServer);
 			});
 
 			return () => render.value() as any;
 		}
 	});
 
-	const app = createSSRApp(Root);
-
+	const app = createSSRApp(withErrorBoundary(Root));
+	app.use(head);
 	// const el = document.getElementById("root");
 	// tinyassert(el);
 	listenHydrationMismatch(() => {

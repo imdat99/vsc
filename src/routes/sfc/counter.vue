@@ -16,7 +16,7 @@ import { ref } from 'vue';
 const count = ref(0);
 const curl = ref('');
 function generateUploadUrl() {
- client.presignedPut({ fileName: 'example.png', contentType: 'image/png' }).then(({url, key}) => {
+ client.presignedPut({ fileName: Math.random()+'example.png', contentType: 'image/png' }).then(({url, key}) => {
    console.log('Presigned URL:', url);
    curl.value = url;
  }); 

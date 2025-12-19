@@ -13,8 +13,8 @@ const S3 = new S3Client({
   region: "auto", // Required by SDK but not used by R2
   endpoint: `https://u.pipic.fun`,
   credentials: {
-    accessKeyId: "",
-    secretAccessKey: "",
+    accessKeyId: "Q3AM3UQ867SPQQA43P2F",
+    secretAccessKey: "Ik7nlCaUUCFOKDJAeSgFcbF5MEBGh9sVGBUrsUOp",
   },
   forcePathStyle: true,
 });
@@ -31,7 +31,7 @@ export async function presignedPut(fileName: string, contentType: string){
   const url = await getSignedUrl(
     S3,
     new PutObjectCommand({
-      Bucket: "bucket-lethdat",
+      Bucket: "tmp",
       Key: key,
       ContentType: contentType,
       CacheControl: "public, max-age=31536000, immutable",
@@ -47,7 +47,7 @@ export async function generateUploadForm(fileName: string, contentType: string) 
         throw new Error("Invalid content type");
       }
       return await createPresignedPost(S3, {
-        Bucket: "bucket-lethdat",
+        Bucket: "tmp",
         Key: nanoId()+"_"+fileName,
         Expires: 10 * 60, // URL valid for 10 minutes
         Conditions: [
@@ -56,11 +56,11 @@ export async function generateUploadForm(fileName: string, contentType: string) 
         ],
       });
     }
-// generateUploadUrl("bucket-lethdat", "cat.png", "image/png").then(console.log);
+// generateUploadUrl("tmp", "cat.png", "image/png").then(console.log);
 export async function createDownloadUrl(key: string): Promise<string> {
   const url = await getSignedUrl(
     S3,
-    new GetObjectCommand({ Bucket: "bucket-lethdat", Key: key }),
+    new GetObjectCommand({ Bucket: "tmp", Key: key }),
     { expiresIn: 600 } // 600 giây = 10 phút
   );
   return url;

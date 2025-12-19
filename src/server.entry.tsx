@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import vueRenderer from './routes/_renderer';
-import { serveStatic } from '@hono/node-server/serve-static';
+// import { serveStatic } from '@hono/node-server/serve-static';
 import { cors } from "hono/cors";
 // import { serveStatic } from "hono/bun";
 import { showRoutes } from "hono/dev";
@@ -17,7 +17,7 @@ app.use(cors(), async (c, next) => {
    c.set("isMobile", isMobile({ ua }));
   await next();
 }, contextStorage(), rpcServer);
-app.use(serveStatic({ root: "./public" }));
+// app.use(serveStatic({ root: "./public" }));
 app.use(vueRenderer)
 app.get('/', async (c) => {
 	const home = await import('./routes/home.server.vue')

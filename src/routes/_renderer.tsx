@@ -56,15 +56,16 @@ const createRenderer =
 				}
 				const streamBody = new ReadableStream({
 					async start(controller) {
+						const encoder = new TextEncoder();
 						const reader = stream.getReader();
-						controller.enqueue("<!DOCTYPE html><html lang='en'><head><base href='" + url.origin + "'/>")
-						await renderSSRHead(head).then((headString) => controller.enqueue(headString.headTags.replace(/\n/g, "")));
-						controller.enqueue('<meta charset="utf-8" />')
-						controller.enqueue('<meta name="viewport" content="width=device-width, initial-scale=1.0" />')
-						controller.enqueue('<link rel="icon" href="/favicon.ico" />')
-						controller.enqueue(`<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"rel="stylesheet"></link>`);
-						controller.enqueue(buildBootstrapScript());
-						controller.enqueue('</head><body class=":uno: bg-info/5 text-gray-900 font-sans antialiased overflow-x-hidden min-h-svh flex flex-col">')
+						controller.enqueue(encoder.encode("<!DOCTYPE html><html lang='en'><head><base href='" + url.origin + "'/>"))
+						await renderSSRHead(head).then((headString) => controller.enqueue(encoder.encode(headString.headTags.replace(/\n/g, ""))));
+						controller.enqueue(encoder.encode('<meta charset="utf-8" />'))
+						controller.enqueue(encoder.encode('<meta name="viewport" content="width=device-width, initial-scale=1.0" />'))
+						controller.enqueue(encoder.encode('<link rel="icon" href="/favicon.ico" />'))
+						controller.enqueue(encoder.encode(`<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"rel="stylesheet"></link>`));
+						controller.enqueue(encoder.encode(buildBootstrapScript()));
+						controller.enqueue(encoder.encode('</head><body class=":uno: bg-info/5 text-gray-900 font-sans antialiased overflow-x-hidden min-h-svh flex flex-col">'));
 						try {
 							while (true) {
 								const isDone = await reader.read().then(({ done, value }) => {
@@ -74,7 +75,7 @@ const createRenderer =
 									controller.enqueue(value);
 								});
 								if (isDone) {
-									controller.enqueue('</body></html>');
+									controller.enqueue(encoder.encode('</body></html>'));
 									break;
 								}
 							}

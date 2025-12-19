@@ -1,4 +1,5 @@
 <template>
+	<VueHead :input="{ title: '404 Not Found' }" />
 	<div class="flex items-center justify-center min-h-screen-sm">
 		<div class="p-8 space-y-lg max-w-lg w-full">
 			<p>
@@ -11,3 +12,7 @@
 		</div>
 	</div>
 </template>
+<script lang="ts" setup>
+import { VueHead } from '@/components/Layout/Head';
+console.log("404 page loaded");
+</script>
