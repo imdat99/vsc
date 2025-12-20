@@ -1,6 +1,6 @@
 <template>
 	<Counter />
-	<vue-head :input="{ title: 'PicPic - App chia sẻ hình ảnh miễn phí' }" />
+	<vue-head :input="{ title: 'PicPic' }" />
 </template>
 <script lang="ts" setup>
 import { VueHead } from '@/components/Layout/Head';

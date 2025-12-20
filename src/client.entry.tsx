@@ -1,4 +1,5 @@
 import { createHead } from "@unhead/vue/client";
+import "uno.css";
 import {
 	createSSRApp,
 	defineComponent,
@@ -12,16 +13,21 @@ import { listenBrowserHistory } from "./integrations/router/browser";
 import { deserialize } from "./integrations/serialize";
 import { isRouteLoading, routerKey } from "./lib/constants";
 import { withErrorBoundary } from "./lib/hoc/withErrorBoundary";
-import "uno.css";
 
 // import { ssrRegisterHelper } from "/__vue-jsx-ssr-register-helper"
+const cacheComp = new Map<string, any>();
 async function callServer() {
 	const request = new Request(window.location.href, { method: "GET", headers: { "x-vsc": "true" } });
-
+	const comp = cacheComp.get(request.url);
+	if (comp) {
+		return comp;
+	}
 	const res = await fetch(request);
 	const result = await res.json()
 	const referenceMap = await createReferenceMap(result[0].map((i: number) => [i, result[i]]));
-	return () => deserialize(result, referenceMap)
+	
+	cacheComp.set(request.url, () => deserialize(result, referenceMap));
+	return cacheComp.get(request.url)!;
 };
 async function main() {
 	if (window.location.search.includes("__nojs")) {
@@ -47,8 +53,13 @@ async function main() {
 				},
 			});
 			listenBrowserHistory(() => {
-				isLoading.value = true;
 				currentUrl.value = new URL(window.location.href).pathname;
+				const comp = cacheComp.get(window.location.href);
+				if (comp) {
+					render.value = comp;
+					return;
+				}
+				isLoading.value = true;
 				navManager.push(callServer);
 			});
 

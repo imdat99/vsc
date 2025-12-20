@@ -14,5 +14,4 @@
 </template>
 <script lang="ts" setup>
 import { VueHead } from '@/components/Layout/Head';
-console.log("404 page loaded");
 </script>

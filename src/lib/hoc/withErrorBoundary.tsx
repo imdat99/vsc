@@ -24,6 +24,7 @@ export function withErrorBoundary(WrappedComponent: any) {
         setup() {
             const hasError = ref(false);
             const error = ref<Error | null>(null);
+           
             onErrorCaptured((err) => {
                 hasError.value = true;
                 error.value = err as Error;
