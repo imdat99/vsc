@@ -96,13 +96,11 @@ export default defineConfig({
       full: "9999px",
     },
   },
-  shortcuts: {
-    "press-animated":
-      "transition-all duration-200 ease-[cubic-bezier(.22,1,.36,1)] active:translate-y-0 active:scale-90 active:shadow-md",
-    "animate-loadingBar": {
-      animation: "loadingBar 1.5s linear infinite",
-    },
-  },
+  shortcuts: [
+    ["press-animated",
+      "transition-all duration-200 ease-[cubic-bezier(.22,1,.36,1)] active:translate-y-0 active:scale-90 active:shadow-md"],
+    ["animate-loadingBar", ["animation", "loadingBar 1.5s linear infinite"]],
+  ],
   transformers: [transformerVariantGroup(), transformerCompileClass()],
   preflights: [
     {
