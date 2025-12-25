@@ -5,6 +5,7 @@ import {
   GetObjectCommand,
   PutObjectCommand,
   DeleteObjectCommand,
+  CreateMultipartUploadCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
  import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
@@ -41,6 +42,21 @@ export async function presignedPut(fileName: string, contentType: string){
     { expiresIn: 600 } // URL valid for 10 minutes
   );
   return { url, key };
+}
+export async function chunkedUpload(fileName: string, contentType: string, fileSize: number) {
+  // lớn hơn 3gb thì cút
+  if (fileSize > 3 * 1024 * 1024 * 1024) {
+    throw new Error("File size exceeds 3GB");
+  }
+  // CreateMultipartUploadCommand
+  const uploadParams = {
+    Bucket: "tmp",
+    Key: nanoId()+"_"+fileName,
+    ContentType: contentType,
+    CacheControl: "public, max-age=31536000, immutable",
+  };
+  let data = await S3.send(new CreateMultipartUploadCommand(uploadParams));
+  return data;
 }
 export async function generateUploadForm(fileName: string, contentType: string) {
       if (!imageContentTypes.includes(contentType)) {
