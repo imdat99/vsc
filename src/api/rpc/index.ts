@@ -11,7 +11,7 @@ import { z } from "zod";
 import { authMethods } from "./auth";
 import { jwt } from "hono/jwt";
 import { secret } from "./commom";
-import { chunkedUpload, imageContentTypes, presignedPut } from "./s3_handle";
+import { abortChunk, chunkedUpload, completeChunk, createPresignedUrls, imageContentTypes, nanoid, presignedPut, videoContentTypes } from "./s3_handle";
 // import { createElement } from "react";
 
 let counter = 0;
@@ -274,7 +274,25 @@ const routes = {
 	presignedPut: validateFn(z.object({ fileName: z.string(), contentType: z.string().refine((val) => imageContentTypes.includes(val), { message: "Invalid content type" }) }))(async ({ fileName, contentType }) => {
 		return await presignedPut(fileName, contentType);
 	}),
-	chunkedUpload,
+	chunkedUpload: validateFn(z.object({ fileName: z.string(), contentType: z.string().refine((val) => videoContentTypes.includes(val), { message: "Invalid content type" }), fileSize: z.number().min(1024 * 10).max(3 * 1024 * 1024 * 1024).default(1024 * 256) }))(async ({ fileName, contentType, fileSize }) => {
+		const key = nanoid() + "_" + fileName;
+		const { UploadId } = await chunkedUpload(key, contentType, fileSize);
+		const chunkSize = 1024 * 1024 * 20; // 20MB
+		const presignedUrls = await createPresignedUrls({
+			key,
+			uploadId: UploadId!,
+			totalParts: Math.ceil(fileSize / chunkSize),
+		});
+		return { uploadId: UploadId!, presignedUrls, chunkSize, key, totalParts: presignedUrls.length };
+	}),
+	completeChunk: validateFn(z.object({ key: z.string(), uploadId: z.string(), parts: z.array(z.object({ PartNumber: z.number(), ETag: z.string() })) }))(async ({ key, uploadId, parts }) => {
+		await completeChunk(key, uploadId, parts);
+		return { success: true };
+	}),
+	abortChunk: validateFn(z.object({ key: z.string(), uploadId: z.string() }))(async ({ key, uploadId }) => {
+		await abortChunk(key, uploadId);
+		return { success: true };
+	}),
 	...authMethods
 };
 export type RpcRoutes = typeof routes;

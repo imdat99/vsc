@@ -12,6 +12,7 @@
 
 <script setup lang="ts">
 import { client } from '@/api/rpcclient';
+import { uploadMultipartWithAbort } from '@/lib/chunkUpload';
 import { ref } from 'vue';
 
 const count = ref(0);
@@ -22,9 +23,10 @@ function onFileChange(event: Event) {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
     const file = target.files[0];
-    client.chunkedUpload(file.name, file.type, file.size).then((res) => {
-      console.log('Presigned URL:', res.UploadId);
-      // curl.value = res.UploadId;
+    uploadMultipartWithAbort(file, 4).then(() => {
+      console.log('Upload completed');
+    }).catch((err) => {
+      console.error('Upload failed', err);
     });
   }
 };
