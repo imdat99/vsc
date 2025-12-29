@@ -17,6 +17,7 @@
     "@hiogawa/utils": "^1.7.0",
     "@hono/node-server": "^1.19.6",
     "@primeuix/themes": "^2.0.2",
+    "@primevue/forms": "^4.5.4",
     "@unhead/vue": "^2.0.19",
     "clsx": "^2.1.1",
     "hono": "^4.10.7",

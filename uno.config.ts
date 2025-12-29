@@ -119,6 +119,16 @@ export default defineConfig({
 		  50% { transform: translateX(0%); }
           100% { transform: translateX(100%); }
         }
+          .glass-nav {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .text-gradient {
+            background: linear-gradient(135deg, #064e3b 0%, #10b981 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
       `;
       },
     },

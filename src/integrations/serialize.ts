@@ -245,8 +245,14 @@ class Deserializer {
 		if (r !== undefined) {
 			return r;
 		}
-		if (Array.isArray(v) && v[0] >= 1 /* __snode */) {
-			return this.setCache(v, this.deserializeNode(v as SNode));
+		try {
+
+			if (Array.isArray(v) && v.length === 5 && v[0] >= 1 /* __snode */) {
+				return this.setCache(v, this.deserializeNode(v as SNode));
+			}
+		} catch (e) {
+			console.error("deserialize node error", e, v);
+			throw e;
 		}
 		if (Array.isArray(v)) {
 			return this.setCache(v, v.map((v) => this.deserialize(v)));

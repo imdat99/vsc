@@ -31,10 +31,10 @@ const createRenderer =
 			const isVsc = c.req.header("x-vsc") === "true"
 			const serverApp = createSSRApp(isVsc ? () => null : node);
 			serverApp.use(head);
-			appUse(serverApp);
 			serverApp.provide(requestCtxKey, c);
 			serverApp.provide(isRouteLoading, readonly(ref(false)));
 			serverApp.provide(routerKey, readonly(ref(url.pathname)));
+			appUse(serverApp);
 			if (isVsc) {
 				serverApp.provide(ssrContextKey, { modules: new Set() });
 				c.header("Content-Type", "application/json; charset=UTF-8");
@@ -112,7 +112,7 @@ const vueRenderer = (
 	}
 export default vueRenderer(({ Children }, c) => {
 	// console.log("children", children)
-	return 	<RootLayout><Children /></RootLayout>;
+	return 	<Children />
 }, { stream: true })
 
 /**

@@ -23,10 +23,15 @@ app.get('/', async (c) => {
 	const home = await import('./routes/home.server.vue')
 	return c.render(home as any);
 });
+app.get("/login", async (c) => {
+	const login = await import('./routes/auth/Page.server.vue')
+	return c.render(login as any);
+});
 app.get('/sfc', async (c) => {
 	const home = await import('./routes/sfc/Page.server.vue')
 	return c.render(home as any);
 });
+
 app.notFound(async (c) => {
 	return c.render(await import('./routes/_404.server.vue') as any);
 });
