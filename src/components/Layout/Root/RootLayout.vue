@@ -37,13 +37,13 @@ const isLoading = inject<Readonly<Ref<string, string>>>(isRouteLoading)!
     </Transition>
     <div class="fixed left-0 w-18 flex flex-col items-center pt-4 gap-6 z-41">
         <template v-for="i in links" :key="i.label">
-            <Link v-if="i.type === 'a'" :exact-active-class="i.exactClass" :href="i.href" :class="className">
+            <Link v-if="i.type === 'a'" v-tooltip="i.label" :exact-active-class="i.exactClass" :href="i.href" :class="className">
                 <component :is="i.icon" />
                 <template #exact>
                     <component :is="i.exact" />
                 </template>
             </Link>
-            <div v-else :class="className">
+            <div v-else :class="className" v-tooltip="i.label">
                 <component :is="i.icon" />
             </div>
         </template>

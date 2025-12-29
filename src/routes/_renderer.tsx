@@ -8,6 +8,7 @@ import { Fragment } from 'vue/jsx-runtime';
 import { renderToWebStream } from "vue/server-renderer";
 import RootLayout from '@/components/Layout/Root/RootLayout.vue';
 import { isRouteLoading, requestCtxKey, routerKey } from '@/lib/constants';
+import { appUse } from '@/appUse';
 
 type PropsForRenderer = {
 	Layout: VueComponent;
@@ -30,6 +31,7 @@ const createRenderer =
 			const isVsc = c.req.header("x-vsc") === "true"
 			const serverApp = createSSRApp(isVsc ? () => null : node);
 			serverApp.use(head);
+			appUse(serverApp);
 			serverApp.provide(requestCtxKey, c);
 			serverApp.provide(isRouteLoading, readonly(ref(false)));
 			serverApp.provide(routerKey, readonly(ref(url.pathname)));

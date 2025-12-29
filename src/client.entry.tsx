@@ -13,6 +13,7 @@ import { listenBrowserHistory } from "./integrations/router/browser";
 import { deserialize } from "./integrations/serialize";
 import { isRouteLoading, routerKey } from "./lib/constants";
 import { withErrorBoundary } from "./lib/hoc/withErrorBoundary";
+import { appUse } from "./appUse";
 
 // import { ssrRegisterHelper } from "/__vue-jsx-ssr-register-helper"
 const cacheComp = new Map<string, any>();
@@ -69,6 +70,7 @@ async function main() {
 
 	const app = createSSRApp(withErrorBoundary(Root));
 	app.use(head);
+	appUse(app);
 	// const el = document.getElementById("root");
 	// tinyassert(el);
 	listenHydrationMismatch(() => {
